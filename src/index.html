@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mago — 动作</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&family=Work+Sans:wght@600&display=swap"
+      rel="stylesheet" />
+  </head>
+  <body>
+    <div class="viewport">
+      <div class="ui-sizer" id="ui-sizer">
+        <div class="app" data-name="动作">
+          <div class="app-header">
+            <div class="app-header__inner">
+              <a class="app-header__brand app-link" href="#">MagosMaster</a>
+              <nav class="app-header__nav" aria-label="主导航">
+                <ul class="app-header__nav-list">
+                  <li>
+                    <a
+                      id="connect-nav-trigger"
+                      class="app-link"
+                      href="#"
+                      aria-controls="connect-hamburger-panel"
+                      aria-expanded="false"
+                      data-i18n="nav_connect">连接</a>
+                  </li>
+                  <li><a id="material-nav-trigger" class="app-link" href="#"
+                      aria-controls="material-hamburger-panel"
+                      aria-expanded="false" data-i18n="nav_assets">素材</a></li>
+
+                  <li><a id="ui-nav-trigger" class="app-link" href="#"
+                      aria-controls="ui-hamburger-panel"
+                      aria-expanded="false" data-i18n="nav_ui">界面</a></li>
+                  <li><a id="execute-nav-trigger" class="app-link" href="#"
+                      aria-controls="execute-hamburger-panel"
+                      aria-expanded="false" data-i18n="nav_status">状态</a></li>
+                  <li>
+                    <button type="button" id="action-group-save-btn"
+                      class="app-link"
+                      data-i18n="nav_save_action_group">存储动作组</button>
+                  </li>
+                  <li>
+                    <button type="button" id="action-group-load-btn"
+                      class="app-link"
+                      data-i18n="nav_load_action_group">加载动作组</button>
+                  </li>
+                  <li>
+                    <button type="button" id="execute-simulate-btn"
+                      class="app-link"
+                      data-i18n="execute_simulate">模拟执行</button>
+                  </li>
+                  <li>
+                    <button type="button" id="execute-run-btn" class="app-link"
+                      data-i18n="execute_run">执行</button>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          </div>
+
+          <div class="shell">
+            <div class="shell__band">
+              <div class="shell__frame">
+                <aside class="shell__band-aside"
+                  data-i18n-aria="joint_tools_region_aria"
+                  aria-label="工具区">
+                  <div class="shell-band-widget shell-band-widget--joint-stack">
+                    <div class="joint-control" data-joint-control>
+                      <div class="joint-control__top">
+                        <span class="joint-control__label"
+                          data-i18n="joint_part_1">部位1：</span>
+                        <input type="number" class="joint-control__value joint-control__value-input"
+                          min="0" max="180" step="1" value="90" inputmode="numeric"
+                          aria-label="头部角度（度）" />
+                      </div>
+                      <div class="joint-control__slider-wrap">
+                        <input
+                          class="joint-control__slider"
+                          type="range"
+                          min="0"
+                          max="180"
+                          value="90"
+                          step="1"
+                          data-i18n-aria="joint_part_1_aria"
+                          aria-label="部位1数值" />
+                      </div>
+                    </div>
+                    <div class="joint-control" data-joint-control>
+                      <div class="joint-control__top">
+                        <span class="joint-control__label"
+                          data-i18n="joint_part_2">部位2：</span>
+                        <input type="number" class="joint-control__value joint-control__value-input"
+                          min="0" max="180" step="1" value="90" inputmode="numeric"
+                          aria-label="左肩角度（度）" />
+                      </div>
+                      <div class="joint-control__slider-wrap">
+                        <input
+                          class="joint-control__slider"
+                          type="range"
+                          min="0"
+                          max="180"
+                          value="90"
+                          step="1"
+                          data-i18n-aria="joint_part_2_aria"
+                          aria-label="部位2数值" />
+                      </div>
+                    </div>
+                    <div class="joint-control" data-joint-control>
+                      <div class="joint-control__top">
+                        <span class="joint-control__label"
+                          data-i18n="joint_part_3">部位3：</span>
+                        <input type="number" class="joint-control__value joint-control__value-input"
+                          min="0" max="180" step="1" value="90" inputmode="numeric"
+                          aria-label="左臂角度（度）" />
+                      </div>
+                      <div class="joint-control__slider-wrap">
+                        <input
+                          class="joint-control__slider"
+                          type="range"
+                          min="0"
+                          max="180"
+                          value="90"
+                          step="1"
+                          data-i18n-aria="joint_part_3_aria"
+                          aria-label="部位3数值" />
+                      </div>
+                    </div>
+                    <div class="joint-control" data-joint-control>
+                      <div class="joint-control__top">
+                        <span class="joint-control__label"
+                          data-i18n="joint_part_4">部位4：</span>
+                        <input type="number" class="joint-control__value joint-control__value-input"
+                          min="0" max="180" step="1" value="90" inputmode="numeric"
+                          aria-label="左手角度（度）" />
+                      </div>
+                      <div class="joint-control__slider-wrap">
+                        <input
+                          class="joint-control__slider"
+                          type="range"
+                          min="0"
+                          max="180"
+                          value="90"
+                          step="1"
+                          data-i18n-aria="joint_part_4_aria"
+                          aria-label="部位4数值" />
+                      </div>
+                    </div>
+                    <div class="joint-control" data-joint-control>
+                      <div class="joint-control__top">
+                        <span class="joint-control__label"
+                          data-i18n="joint_part_5">部位5：</span>
+                        <input type="number" class="joint-control__value joint-control__value-input"
+                          min="0" max="180" step="1" value="90" inputmode="numeric"
+                          aria-label="右肩角度（度）" />
+                      </div>
+                      <div class="joint-control__slider-wrap">
+                        <input
+                          class="joint-control__slider"
+                          type="range"
+                          min="0"
+                          max="180"
+                          value="90"
+                          step="1"
+                          data-i18n-aria="joint_part_5_aria"
+                          aria-label="部位5数值" />
+                      </div>
+                    </div>
+                    <div class="joint-control" data-joint-control>
+                      <div class="joint-control__top">
+                        <span class="joint-control__label"
+                          data-i18n="joint_part_6">部位6：</span>
+                        <input type="number" class="joint-control__value joint-control__value-input"
+                          min="0" max="180" step="1" value="90" inputmode="numeric"
+                          aria-label="右臂角度（度）" />
+                      </div>
+                      <div class="joint-control__slider-wrap">
+                        <input
+                          class="joint-control__slider"
+                          type="range"
+                          min="0"
+                          max="180"
+                          value="90"
+                          step="1"
+                          data-i18n-aria="joint_part_6_aria"
+                          aria-label="部位6数值" />
+                      </div>
+                    </div>
+                    <div class="joint-control" data-joint-control>
+                      <div class="joint-control__top">
+                        <span class="joint-control__label"
+                          data-i18n="joint_part_7">部位7：</span>
+                        <input type="number" class="joint-control__value joint-control__value-input"
+                          min="0" max="180" step="1" value="90" inputmode="numeric"
+                          aria-label="右手角度（度）" />
+                      </div>
+                      <div class="joint-control__slider-wrap">
+                        <input
+                          class="joint-control__slider"
+                          type="range"
+                          min="0"
+                          max="180"
+                          value="90"
+                          step="1"
+                          data-i18n-aria="joint_part_7_aria"
+                          aria-label="部位7数值" />
+                      </div>
+                    </div>
+                  </div>
+                </aside>
+                <div class="shell__pane shell__pane--work">
+                  <div class="workspace workspace--left">
+                    <div class="workspace__preview">
+                      <div id="three-root" class="preview-canvas"
+                        aria-label="3D 预览">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="workspace workspace--right">
+                    <div class="workspace__preview workspace__preview--right">
+                      <div class="preview-canvas preview-canvas--editor"
+                        aria-label="右侧工作区">
+                        <div class="editor-top-tabs" role="tablist"
+                          aria-label="右侧编辑器标签">
+                          <button type="button"
+                            class="editor-top-tabs__btn editor-top-tabs__btn--active"
+                            id="editor-tab-action-group" role="tab"
+                            aria-selected="true"
+                            aria-controls="editor-panel-action-group"
+                            data-tab="action-group"
+                            data-i18n="editor_action_group_gen">动作生成</button>
+                          <button type="button" class="editor-top-tabs__btn"
+                            id="editor-tab-music" role="tab"
+                            aria-selected="false"
+                            aria-controls="editor-panel-music"
+                            data-tab="music"
+                            data-i18n="editor_music_mode">音乐模式</button>
+                          <button type="button" class="editor-top-tabs__btn"
+                            id="editor-tab-voice" role="tab"
+                            aria-selected="false"
+                            aria-controls="editor-panel-voice"
+                            data-tab="voice"
+                            data-i18n="editor_voice_ctrl">语音控制</button>
+                        </div>
+                        <div class="editor-content-area"
+                          data-i18n-aria="editor_workspace_content_aria"
+                          aria-label="右侧工作区内容区">
+                          <div class="editor-panel editor-panel--active"
+                            id="editor-panel-action-group" role="tabpanel"
+                            aria-labelledby="editor-tab-action-group"
+                            data-panel="action-group">
+                            <div class="editor-action-group">
+                              <span class="editor-action-group__label"
+                                data-i18n="editor_group_name">动作组的名称：</span>
+                              <input type="text"
+                                class="editor-action-group__input"
+                                id="editor-action-group-name-input"
+                                aria-label="动作组名称输入框" />
+
+                              <span class="editor-action-group__label"
+                                data-i18n="editor_group_duration">动作使用时长</span>
+                              <input type="text" inputmode="decimal"
+                                class="editor-action-group__input"
+                                id="editor-action-group-duration-input"
+                                value="1.0"
+                                data-i18n-aria="editor_group_duration_input_aria"
+                                aria-label="动作使用时长输入框" />
+
+                              <button type="button"
+                                class="editor-top-tabs__btn"
+                                id="editor-motor-toggle-btn"
+                                data-i18n="editor_motor_unlock">解锁舵机</button>
+                              <button type="button"
+                                class="editor-top-tabs__btn"
+                                id="editor-action-new-btn"
+                                data-i18n="editor_new_action_btn">新建动作</button>
+                              <button type="button"
+                                class="editor-top-tabs__btn"
+                                id="editor-action-click-btn"
+                                data-i18n="editor_click_btn">保存动作</button>
+                              <button type="button"
+                                class="editor-top-tabs__btn"
+                                id="editor-action-delete-btn"
+                                data-i18n="editor_delete_action_btn">删除动作</button>
+                            </div>
+                          </div>
+                          <div class="editor-panel editor-panel--voice"
+                            id="editor-panel-voice" role="tabpanel"
+                            aria-labelledby="editor-tab-voice"
+                            data-panel="voice">
+                            <div class="editor-voice">
+                              <textarea class="editor-voice__input"
+                                id="editor-voice-input" rows="4"
+                                data-i18n-aria="editor_voice_input_aria"
+                                aria-label="语音输入"></textarea>
+                              <div class="editor-voice__actions"
+                                role="group"
+                                data-i18n-aria="editor_voice_actions_aria"
+                                aria-label="语音片段操作">
+                                <button type="button"
+                                  class="editor-top-tabs__btn"
+                                  id="editor-voice-play-btn"
+                                  data-i18n="editor_voice_play">播放</button>
+                                <button type="button"
+                                  class="editor-top-tabs__btn"
+                                  id="editor-voice-pause-btn"
+                                  data-i18n="editor_voice_pause">添加</button>
+                                <button type="button"
+                                  class="editor-top-tabs__btn"
+                                  id="editor-voice-delete-btn"
+                                  data-i18n="editor_voice_delete">删除</button>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="editor-panel editor-panel--music"
+                            id="editor-panel-music" role="tabpanel"
+                            aria-labelledby="editor-tab-music"
+                            data-panel="music">
+                            <div class="editor-music">
+                              <div class="editor-music__row">
+                                <div class="editor-music__file-field">
+                                  <input type="file" class="editor-music__file-input"
+                                    id="editor-music-file-input"
+                                    accept="audio/*"
+                                    data-i18n-aria="editor_music_file_input_aria"
+                                    aria-label="选择音乐文件" />
+                                  <label for="editor-music-file-input"
+                                    class="editor-music__file-pick"
+                                    data-i18n="editor_music_pick_file">选择文件</label>
+                                  <span class="editor-music__file-name"
+                                    id="editor-music-file-name"
+                                    aria-live="polite"></span>
+                                </div>
+                                <button type="button"
+                                  class="editor-top-tabs__btn"
+                                  id="editor-music-upload-btn"
+                                  data-i18n="editor_music_upload_btn">上传音乐</button>
+                              </div>
+                              <div class="editor-music__row">
+                                <select class="editor-action-group__input"
+                                  id="editor-music-select"
+                                  data-i18n-aria="editor_music_select_aria"
+                                  aria-label="音乐选择下拉框">
+                                  <option value=""
+                                    data-i18n="editor_music_select_placeholder">请选择音乐</option>
+                                </select>
+                                <button type="button"
+                                  class="editor-top-tabs__btn"
+                                  id="editor-music-play-btn"
+                                  data-i18n="editor_music_play_btn">播放音乐</button>
+                              </div>
+                              <div class="editor-music__row editor-music__row--center">
+                                <button type="button"
+                                  class="editor-top-tabs__btn editor-music__mode-btn"
+                                  id="editor-music-mode-btn"
+                                  data-i18n="editor_music_mode">音乐模式</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="shell__frame shell__frame--sub"
+              id="sub-shell-frame"
+              aria-label="动作展示条">
+              <div class="workspace workspace--sub">
+                <div class="sub-gallery" id="sub-gallery" role="list"
+                  aria-label="动作卡片"></div>
+                <div class="sub-gallery__slider-wrap">
+                  <input type="range" class="sub-gallery__slider"
+                    id="sub-gallery-slider"
+                    min="0" max="0" value="0" step="1"
+                    aria-label="动作条滚动"
+                    aria-valuetext="" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <section
+        id="connect-hamburger-panel"
+        class="connect-hamburger"
+        aria-label="联机提示框"
+        hidden>
+        <!-- <div class="connect-hamburger__arrow" aria-hidden="true"></div> -->
+        <div class="connect-hamburger__panel">
+          <h3 class="connect-hamburger__title" data-i18n="connect_title">连接</h3>
+
+          <div class="connect-hamburger__row">
+            <span class="connect-hamburger__label"
+              data-i18n="connect_port">端口</span>
+            <label class="connect-hamburger__select-wrap" for="device-select">
+              <select id="device-select" class="connect-hamburger__select"
+                aria-label="选择设备"></select>
+            </label>
+          </div>
+
+          <div class="connect-hamburger__grid">
+            <button id="refresh-btn" class="connect-hamburger__action-btn"
+              type="button" data-i18n="connect_refresh">刷新</button>
+            <button id="connect-toggle-btn"
+              class="connect-hamburger__action-btn"
+              type="button" data-i18n="connect_connect">连接</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="material-hamburger-panel" class="connect-hamburger"
+        aria-label="素材提示框" hidden>
+        <!-- <div class="connect-hamburger__arrow" aria-hidden="true"></div> -->
+        <div class="connect-hamburger__panel">
+          <h3 class="connect-hamburger__title"
+            data-i18n="material_title">素材</h3>
+          <div class="connect-hamburger__row">
+            <span class="connect-hamburger__label"
+              data-i18n="material_action_group">动作组</span>
+            <label class="connect-hamburger__select-wrap">
+              <select class="connect-hamburger__select" aria-label="添加动作组">
+                <option value selected disabled
+                  data-i18n="select_placeholder">请选择</option>
+                <option>动作组A</option>
+                <option>动作组B</option>
+                <option>动作组C</option>
+              </select>
+            </label>
+          </div>
+          <div class="connect-hamburger__row">
+            <span class="connect-hamburger__label"
+              data-i18n="material_bg_image">背景图片</span>
+            <label class="connect-hamburger__select-wrap">
+              <select class="connect-hamburger__select" aria-label="更换背景图片">
+                <option value selected disabled
+                  data-i18n="select_placeholder">请选择</option>
+                <option>背景图1</option>
+                <option>背景图2</option>
+                <option>背景图3</option>
+              </select>
+            </label>
+          </div>
+          <div class="connect-hamburger__row">
+            <span class="connect-hamburger__label"
+              data-i18n="material_bg_music">背景音乐</span>
+            <label class="connect-hamburger__select-wrap">
+              <select class="connect-hamburger__select" aria-label="添加背景音乐">
+                <option value selected disabled
+                  data-i18n="select_placeholder">请选择</option>
+                <option>BGM-01</option>
+                <option>BGM-02</option>
+                <option>BGM-03</option>
+              </select>
+            </label>
+          </div>
+          <div class="connect-hamburger__row">
+            <span class="connect-hamburger__label"
+              data-i18n="material_expression">表情</span>
+            <label class="connect-hamburger__select-wrap">
+              <select class="connect-hamburger__select" aria-label="添加表情">
+                <option value selected disabled
+                  data-i18n="select_placeholder">请选择</option>
+                <option>开心</option>
+                <option>惊讶</option>
+                <option>眨眼</option>
+              </select>
+            </label>
+          </div>
+          <div class="connect-hamburger__grid">
+            <button class="connect-hamburger__action-btn"
+              type="button" data-i18n="material_btn_music">音乐</button>
+            <button class="connect-hamburger__action-btn"
+              type="button" data-i18n="material_btn_expression">表情</button>
+            <button class="connect-hamburger__action-btn"
+              type="button" data-i18n="material_btn_load">加载</button>
+            <button class="connect-hamburger__action-btn"
+              type="button" data-i18n="material_btn_save">保存</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="ui-hamburger-panel" class="connect-hamburger"
+        aria-label="界面提示框" hidden>
+        <!-- <div class="connect-hamburger__arrow" aria-hidden="true"></div> -->
+        <div class="connect-hamburger__panel">
+          <h3 class="connect-hamburger__title" data-i18n="ui_title">界面</h3>
+          <button class="connect-hamburger__row connect-hamburger__row-btn"
+            type="button" data-i18n="ui_back_blockly">
+            转回Blockly界面
+          </button>
+          <div class="connect-hamburger__row">
+            <span class="connect-hamburger__label"
+              data-i18n="ui_style">样式</span>
+            <label class="connect-hamburger__select-wrap">
+              <select id="theme-style-select" class="connect-hamburger__select"
+                aria-label="样式模式">
+                <option value="light" data-i18n="ui_light">亮色模式</option>
+                <option value="dark" data-i18n="ui_dark">暗色模式</option>
+              </select></label>
+          </div>
+          <div class="connect-hamburger__row">
+            <span class="connect-hamburger__label"
+              data-i18n="ui_language">语言</span>
+            <label class="connect-hamburger__select-wrap">
+              <select id="ui-language-select" class="connect-hamburger__select">
+                <option value="en" data-i18n="ui_lang_en">英语</option>
+                <option value="zh-Hans"
+                  data-i18n="ui_lang_zh_hans">简体中文</option>
+                <option value="zh-Hant"
+                  data-i18n="ui_lang_zh_hant">繁體中文</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section id="execute-hamburger-panel" class="connect-hamburger"
+        aria-label="状态提示框" hidden>
+        <!-- <div class="connect-hamburger__arrow" aria-hidden="true"></div> -->
+        <div class="connect-hamburger__panel">
+          <h3 class="connect-hamburger__title"
+            data-i18n="status_panel_title">状态</h3>
+          <div
+            class="connect-hamburger__row status-panel__bluetooth"
+            role="status"
+            aria-live="polite">
+            <span
+              id="bluetooth-status-dot"
+              class="status-panel__bt-dot is-state-1"
+              data-state="1"
+              aria-hidden="true"></span>
+            <span id="bluetooth-status-text"
+              class="status-panel__bt-text"></span>
+          </div>
+          <div
+            class="connect-hamburger__row connect-hamburger__row--single status-panel__battery-row">
+            <span class="status-panel__battery-inner">
+              <span data-i18n="status_battery_label">电量</span><span
+                id="bluetooth-battery-value"
+                class="status-panel__battery-num">100</span>
+            </span>
+          </div>
+          <div class="connect-hamburger__grid">
+            <button class="connect-hamburger__action-btn"
+              type="button" data-i18n="execute_dance">跳舞模式</button>
+            <button class="connect-hamburger__action-btn"
+              type="button" data-i18n="execute_sync">同步动作</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
