@@ -1,6 +1,7 @@
 import "./styles/main.css";
 import { initUiAssets } from "./lib/ui/uiAssets.js";
 import { setupThemeTabs } from "./lib/ui/tabs.js";
+import { getJson, postJson, putJson, deleteJson, patchJson } from "./lib/API.js";
 import {
   initPreview,
   setBodyRotationZBySlider,
@@ -174,3 +175,8 @@ if (motorToggleBtn) {
     motorToggleBtn.textContent = isOpen ? "解锁舵机" : "关闭舵机";
   });
 }
+
+
+const res1 = await getJson(`/actions/${4}`)
+const res2 = await getJson(`/actions/${4}`)
+console.log(res1.data.data.servo_angles)
