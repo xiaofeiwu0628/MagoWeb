@@ -9,6 +9,7 @@ function cloneAction(a) {
 
 /**
  * 纯本地动作数据：无网络。列表变更后通过 onListChanged 刷新 UI（如底部 sub-gallery）。
+ * 卡片预览图由 gallery 读取 `preview_data_url`（优先）与 `image_path`（外链或根路径 URL）展示。
  */
 export function setupActionDataManager({ actionList, onListChanged } = {}) {
   if (!Array.isArray(actionList)) {

@@ -44,6 +44,15 @@ function readDraggedActionId(dt) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** 动作卡片缩略图：优先 data URL，其次 `image_path`（外链或站点根路径）。 */
+function getActionCardImageSrc(action) {
+  const data = String(action.preview_data_url ?? "").trim();
+  if (data) return data;
+  const path = String(action.image_path ?? "").trim();
+  if (path) return path;
+  return "";
+}
+
 function readJointAnglesForStorage() {
   const sliders = document.querySelectorAll(
     ".joint-control[data-joint-control] .joint-control__slider",
@@ -109,11 +118,21 @@ export function renderSubGallery(list = actionList) {
 
     const display = document.createElement("div");
     display.className = "sub-display";
-    if (action.preview_data_url) {
+    const imgSrc = getActionCardImageSrc(action);
+    if (imgSrc) {
       const img = document.createElement("img");
-      img.src = action.preview_data_url;
-      img.alt = "";
+      img.className = "sub-display__img";
+      img.src = imgSrc;
+      img.alt = action.action_name || `动作 ${action.action_id}`;
+      img.loading = "lazy";
       img.draggable = false;
+      img.addEventListener("error", () => {
+        img.remove();
+        const ph = document.createElement("div");
+        ph.className = "sub-display__placeholder sub-display__placeholder--broken";
+        ph.textContent = "图片加载失败";
+        display.appendChild(ph);
+      });
       display.appendChild(img);
     } else {
       const ph = document.createElement("div");
