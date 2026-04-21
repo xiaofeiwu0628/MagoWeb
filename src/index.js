@@ -74,6 +74,7 @@ const root = document.getElementById("three-root");
 const threePreviewApi = root ? initPreview(root) : null;
 const USERID = 4;
 const ACTION_DETAIL_BATCH_SIZE = 5;
+const DEFAULT_BOOT_GROUP_ID = 14;
 
 /** 将后端可能返回的 JSON 字符串/数组统一转换为数组。 */
 function parseMaybeJsonArray(value) {
@@ -289,57 +290,66 @@ if (actionGroupSaveBtn) {
 
 /** 「加载动作组」：按 groupId 拉组信息 -> 拉动作详情 -> 排序映射 -> 全量替换列表。 */
 const actionGroupLoadBtn = document.getElementById("action-group-load-btn");
+async function loadActionGroupById(groupId, { showSuccessAlert = true } = {}) {
+  const normalizedGroupId = Number(groupId);
+  if (!Number.isInteger(normalizedGroupId)) {
+    throw new Error("group_id 必须为整数");
+  }
+  try {
+    const groupRes = await getJson(`/groups/${normalizedGroupId}`);
+    if (!groupRes.ok) {
+      const msg = groupRes?.data?.message || `加载动作组失败（HTTP ${groupRes.statusCode}）`;
+      throw new Error(msg);
+    }
+    const group = groupRes.data?.data;
+    if (!group) {
+      throw new Error("动作组数据为空");
+    }
+
+    const actionIds = parseMaybeJsonArray(group.action_ids)
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id));
+    if (actionIds.length === 0) {
+      throw new Error("动作组中没有有效 action_ids");
+    }
+    const sequenceOrders = parseMaybeJsonArray(group.sequence_orders);
+    const orderedActionIds = orderActionIdsBySequence(actionIds, sequenceOrders);
+    const actionDetailDict = await fetchActionDetailsInBatches(orderedActionIds);
+
+    const mappedActions = orderedActionIds
+      .map((actionId) => actionDetailDict[actionId] ?? buildDefaultActionDetail(actionId))
+      .map((item) => ({
+        action_id: item.action_id,
+        action_name: item.action_name,
+        duration: item.duration,
+        image_path: item.image_path,
+        preview_data_url: "",
+        joint_angles: [...item.joint_servo_angles],
+        switch_data: 1,
+        sync: false,
+        type: "motion",
+        voice: "",
+      }));
+
+    actionDataApi.replaceAllActions(mappedActions);
+    const groupNameInput = document.getElementById("editor-action-group-name-input");
+    if (groupNameInput) groupNameInput.value = String(group.group_name ?? "");
+    if (showSuccessAlert) {
+      window.alert(`动作组加载成功，共 ${mappedActions.length} 条动作`);
+    }
+  } catch (err) {
+    throw new Error(err?.message || "未知错误");
+  }
+}
+
 if (actionGroupLoadBtn) {
   actionGroupLoadBtn.addEventListener("click", async () => {
     const groupInput = window.prompt("请输入 group_id", "");
     if (groupInput == null) return;
     const groupId = Number(groupInput);
-    if (!Number.isInteger(groupId)) {
-      window.alert("group_id 必须为整数");
-      return;
-    }
-
     actionGroupLoadBtn.disabled = true;
     try {
-      const groupRes = await getJson(`/groups/${groupId}`);
-      if (!groupRes.ok) {
-        const msg = groupRes?.data?.message || `加载动作组失败（HTTP ${groupRes.statusCode}）`;
-        throw new Error(msg);
-      }
-      const group = groupRes.data?.data;
-      if (!group) {
-        throw new Error("动作组数据为空");
-      }
-
-      const actionIds = parseMaybeJsonArray(group.action_ids)
-        .map((id) => Number(id))
-        .filter((id) => Number.isInteger(id));
-      if (actionIds.length === 0) {
-        throw new Error("动作组中没有有效 action_ids");
-      }
-      const sequenceOrders = parseMaybeJsonArray(group.sequence_orders);
-      const orderedActionIds = orderActionIdsBySequence(actionIds, sequenceOrders);
-      const actionDetailDict = await fetchActionDetailsInBatches(orderedActionIds);
-
-      const mappedActions = orderedActionIds
-        .map((actionId) => actionDetailDict[actionId] ?? buildDefaultActionDetail(actionId))
-        .map((item) => ({
-          action_id: item.action_id,
-          action_name: item.action_name,
-          duration: item.duration,
-          image_path: item.image_path,
-          preview_data_url: "",
-          joint_angles: [...item.joint_servo_angles],
-          switch_data: 1,
-          sync: false,
-          type: "motion",
-          voice: "",
-        }));
-
-      actionDataApi.replaceAllActions(mappedActions);
-      const groupNameInput = document.getElementById("editor-action-group-name-input");
-      if (groupNameInput) groupNameInput.value = String(group.group_name ?? "");
-      window.alert(`动作组加载成功，共 ${mappedActions.length} 条动作`);
+      await loadActionGroupById(groupId, { showSuccessAlert: true });
     } catch (err) {
       console.error("[action-group] 加载失败", err);
       window.alert(`动作组加载失败：${err.message || "未知错误"}`);
@@ -348,6 +358,14 @@ if (actionGroupLoadBtn) {
     }
   });
 }
+
+// 页面启动后默认加载固定动作组，避免每次手动输入 group_id。
+loadActionGroupById(DEFAULT_BOOT_GROUP_ID, { showSuccessAlert: false }).catch((err) => {
+  console.error("[action-group] 启动默认加载失败", {
+    groupId: DEFAULT_BOOT_GROUP_ID,
+    message: err?.message || err,
+  });
+});
 
 /** 关节滑条与 threePreview 旋转映射（索引与 UI 排列保持一致）。 */
 const slider1 = document.querySelector(
