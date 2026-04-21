@@ -69,6 +69,24 @@ function readJointAnglesForStorage() {
   return out.slice(0, targetLen);
 }
 
+function applyActionAnglesToSliders(jointAngles) {
+  const sliders = Array.from(
+    document.querySelectorAll(
+      ".joint-control[data-joint-control] .joint-control__slider",
+    ),
+  ).slice(0, 7);
+  sliders.forEach((slider, index) => {
+    const raw = Number(Array.isArray(jointAngles) ? jointAngles[index] : NaN);
+    const min = Number(slider.min ?? 0);
+    const max = Number(slider.max ?? 180);
+    const fallback = Number(slider.value) || 90;
+    const target = Number.isFinite(raw) ? raw : fallback;
+    const clamped = Math.min(max, Math.max(min, target));
+    slider.value = String(Math.round(clamped));
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 function toAbsoluteImagePath(maybePath) {
   const s = String(maybePath ?? "").trim();
   if (!s) return "";
@@ -217,6 +235,10 @@ export function renderSubGallery(list = actionList) {
       if (nameInput) nameInput.value = action.action_name ?? "";
       if (durInput) durInput.value = String(action.duration ?? "1.0");
       renderSubGallery();
+    });
+
+    card.addEventListener("dblclick", () => {
+      applyActionAnglesToSliders(action.joint_angles);
     });
 
     card.append(display, desc);
