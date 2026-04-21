@@ -52,6 +52,12 @@ setupJointControls();
 
 const musicFileInput = document.getElementById("editor-music-file-input");
 const musicFileNameEl = document.getElementById("editor-music-file-name");
+const musicUploadBtn = document.getElementById("editor-music-upload-btn");
+const musicSelectEl = document.getElementById("editor-music-select");
+const materialBgMusicSelectEl = document.getElementById("material-bg-music-select");
+const materialActionGroupSelectEl = document.getElementById("material-action-group-select");
+const materialActionGroupLoadBtn = document.getElementById("material-action-group-load-btn");
+const materialActionGroupSaveBtn = document.getElementById("material-action-group-save-btn");
 const syncMusicFileNameLabel = () => {
   if (!musicFileNameEl) return;
   const locale = getCurrentLocale();
@@ -70,11 +76,171 @@ if (musicFileInput && musicFileNameEl) {
   syncMusicFileNameLabel();
 }
 
+async function loadMusicListToSelect() {
+  if (!musicSelectEl) return;
+  const placeholderOption = musicSelectEl.querySelector('option[value=""]');
+  try {
+    const res = await getJson("/uploads/musics");
+    if (!res.ok) {
+      const msg = res?.data?.message || `获取音乐列表失败（HTTP ${res.statusCode}）`;
+      throw new Error(msg);
+    }
+    const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+    musicSelectEl.innerHTML = "";
+    if (placeholderOption) {
+      musicSelectEl.appendChild(placeholderOption);
+    }
+    rows.forEach((item) => {
+      const path = String(item?.path ?? "").trim();
+      if (!path) return;
+      const filename = String(item?.filename ?? "").trim() || path.split("/").pop() || "music";
+      const opt = document.createElement("option");
+      opt.value = path;
+      opt.textContent = filename;
+      musicSelectEl.appendChild(opt);
+    });
+    console.info("[music] 音乐列表加载完成", { count: rows.length });
+  } catch (err) {
+    console.warn("[music] 音乐列表加载失败", err);
+  }
+}
+
+function stripFileExtension(filename) {
+  const name = String(filename ?? "").trim();
+  if (!name) return "";
+  return name.replace(/\.[^.]+$/, "");
+}
+
+async function loadMusicListToMaterialSelect() {
+  if (!materialBgMusicSelectEl) return;
+  const placeholderOption = materialBgMusicSelectEl.querySelector('option[value=""]');
+  try {
+    const res = await getJson("/uploads/musics");
+    if (!res.ok) {
+      const msg = res?.data?.message || `获取音乐列表失败（HTTP ${res.statusCode}）`;
+      throw new Error(msg);
+    }
+    const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+    materialBgMusicSelectEl.innerHTML = "";
+    if (placeholderOption) {
+      materialBgMusicSelectEl.appendChild(placeholderOption);
+    }
+    rows.forEach((item) => {
+      const path = String(item?.path ?? "").trim();
+      if (!path) return;
+      const filename = String(item?.filename ?? "").trim() || path.split("/").pop() || "music";
+      const opt = document.createElement("option");
+      opt.value = path;
+      opt.textContent = stripFileExtension(filename) || filename;
+      materialBgMusicSelectEl.appendChild(opt);
+    });
+    console.info("[material] 背景音乐下拉加载完成", { count: rows.length });
+  } catch (err) {
+    console.warn("[material] 背景音乐下拉加载失败", err);
+  }
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("文件读取失败"));
+    reader.readAsDataURL(file);
+  });
+}
+
+if (musicUploadBtn) {
+  musicUploadBtn.addEventListener("click", async () => {
+    const musicFile = musicFileInput?.files?.[0];
+    if (!musicFile) {
+      window.alert("请先选择音乐文件");
+      return;
+    }
+    musicUploadBtn.disabled = true;
+    try {
+      const musicDataUrl = await fileToDataUrl(musicFile);
+      const uploadRes = await postJson("/uploads/music", {
+        music_data_url: musicDataUrl,
+      });
+      if (!uploadRes.ok) {
+        const msg = uploadRes?.data?.message || `上传失败（HTTP ${uploadRes.statusCode}）`;
+        throw new Error(msg);
+      }
+      const musicPath = String(uploadRes?.data?.data?.path || "").trim();
+      if (!musicPath) {
+        throw new Error("上传成功但未返回音乐路径");
+      }
+      if (musicSelectEl) {
+        const opt = document.createElement("option");
+        opt.value = musicPath;
+        opt.textContent = musicFile.name;
+        musicSelectEl.appendChild(opt);
+        musicSelectEl.value = musicPath;
+      }
+      console.info("[music] 上传成功", { name: musicFile.name, path: musicPath });
+      window.alert("音乐上传成功");
+    } catch (err) {
+      console.error("[music] 上传失败", err);
+      window.alert(`音乐上传失败：${err.message || "未知错误"}`);
+    } finally {
+      musicUploadBtn.disabled = false;
+    }
+  });
+}
+
+loadMusicListToSelect();
+loadMusicListToMaterialSelect();
+
 const root = document.getElementById("three-root");
 const threePreviewApi = root ? initPreview(root) : null;
 const USERID = 4;
 const ACTION_DETAIL_BATCH_SIZE = 5;
 const DEFAULT_BOOT_GROUP_ID = 14;
+const ACTION_LIST_STORAGE_KEY = "magosmaster-action-list-v1";
+
+function hasPersistedActionList() {
+  try {
+    const raw = window.localStorage.getItem(ACTION_LIST_STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function loadMaterialActionGroupsToSelect() {
+  if (!materialActionGroupSelectEl) return;
+  const placeholderOption = materialActionGroupSelectEl.querySelector('option[value=""]');
+  try {
+    const res = await getJson(`/groups?user_id=${USERID}`);
+    if (!res.ok) {
+      const msg = res?.data?.message || `获取动作组列表失败（HTTP ${res.statusCode}）`;
+      throw new Error(msg);
+    }
+    const groups = Array.isArray(res?.data?.data) ? res.data.data : [];
+    materialActionGroupSelectEl.innerHTML = "";
+    if (placeholderOption) {
+      materialActionGroupSelectEl.appendChild(placeholderOption);
+    }
+    groups.forEach((group) => {
+      const groupId = Number(group?.group_id);
+      if (!Number.isInteger(groupId)) return;
+      const groupName = String(group?.group_name ?? "").trim() || `动作组 ${groupId}`;
+      const actionIds = parseMaybeJsonArray(group?.action_ids)
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id));
+      const opt = document.createElement("option");
+      opt.value = String(groupId);
+      opt.textContent = groupName;
+      opt.dataset.actionIds = JSON.stringify(actionIds);
+      materialActionGroupSelectEl.appendChild(opt);
+    });
+    console.info("[material] 动作组下拉加载完成", { count: groups.length });
+  } catch (err) {
+    console.warn("[material] 动作组下拉加载失败", err);
+  }
+}
 
 /** 将后端可能返回的 JSON 字符串/数组统一转换为数组。 */
 function parseMaybeJsonArray(value) {
@@ -89,6 +255,8 @@ function parseMaybeJsonArray(value) {
   }
   return [];
 }
+
+loadMaterialActionGroupsToSelect();
 
 /** 舵机角度标准化：非数字兜底 90，并补齐到固定长度。 */
 function normalizeAngles(angles, targetLen = 10) {
@@ -217,74 +385,84 @@ wireGalleryActions(actionDataApi, { threePreview: threePreviewApi });
 
 /** 「存储动作组」：将当前 actionList 发送到 /api/groups。 */
 const actionGroupSaveBtn = document.getElementById("action-group-save-btn");
-if (actionGroupSaveBtn) {
-  actionGroupSaveBtn.addEventListener("click", async () => {
-    const groupNameInput = document.getElementById("editor-action-group-name-input");
-    const defaultGroupName = (groupNameInput?.value ?? "").trim() || "未命名动作组";
-    const groupInput = window.prompt("请输入 group_name", defaultGroupName);
-    if (groupInput == null) return;
-    const groupName = groupInput.trim();
-    if (!groupName) {
-      window.alert("group_name 不能为空");
-      return;
-    }
-    if (!Array.isArray(actionList) || actionList.length === 0) {
-      window.alert("当前没有可保存的动作");
-      return;
-    }
+async function handleSaveActionGroupClick(triggerBtn) {
+  const groupNameInput = document.getElementById("editor-action-group-name-input");
+  const defaultGroupName = (groupNameInput?.value ?? "").trim() || "未命名动作组";
+  const groupInput = window.prompt("请输入 group_name", defaultGroupName);
+  if (groupInput == null) return;
+  const groupName = groupInput.trim();
+  if (!groupName) {
+    window.alert("group_name 不能为空");
+    return;
+  }
+  if (!Array.isArray(actionList) || actionList.length === 0) {
+    window.alert("当前没有可保存的动作");
+    return;
+  }
 
-    if (actionList.length === 0) {
-      window.alert("动作数据无效，无法保存动作组");
-      return;
-    }
+  if (actionList.length === 0) {
+    window.alert("动作数据无效，无法保存动作组");
+    return;
+  }
 
-    actionGroupSaveBtn.disabled = true;
-    try {
-      // 先创建动作，拿到后端生成的 action_id，再用于创建动作组。
-      const createdActionIds = [];
-      for (const action of actionList) {
-        const actionName = String(action?.action_name ?? "").trim() || "未命名动作";
-        const servoAngles = normalizeAngles(action?.joint_angles);
-        const createActionPayload = {
-          user_id: USERID,
-          duration: Number(action?.duration) || 1,
-          servo_angles: servoAngles,
-          status: true,
-          image_path: action?.image_path || null,
-          description_text: JSON.stringify({ action_name: actionName }),
-        };
-        const createActionRes = await postJson("/actions/", createActionPayload);
-        if (!createActionRes.ok) {
-          const msg =
-            createActionRes?.data?.message ||
-            `创建动作失败（HTTP ${createActionRes.statusCode}）`;
-          throw new Error(msg);
-        }
-        const createdActionId = Number(createActionRes?.data?.data?.action_id);
-        if (!Number.isInteger(createdActionId)) {
-          throw new Error("创建动作成功但未返回有效 action_id");
-        }
-        createdActionIds.push(createdActionId);
-      }
-      const payload = {
-        group_name: groupName,
+  triggerBtn.disabled = true;
+  try {
+    // 先创建动作，拿到后端生成的 action_id，再用于创建动作组。
+    const createdActionIds = [];
+    for (const action of actionList) {
+      const actionName = String(action?.action_name ?? "").trim() || "未命名动作";
+      const servoAngles = normalizeAngles(action?.joint_angles);
+      const createActionPayload = {
         user_id: USERID,
-        action_ids: createdActionIds,
-        sequence_orders: [...createdActionIds],
+        duration: Number(action?.duration) || 1,
+        servo_angles: servoAngles,
+        status: true,
+        image_path: action?.image_path || null,
+        description_text: JSON.stringify({ action_name: actionName }),
       };
-      const res = await postJson("/groups/", payload);
-      if (!res.ok) {
-        const msg = res?.data?.message || `保存失败（HTTP ${res.statusCode}）`;
+      const createActionRes = await postJson("/actions/", createActionPayload);
+      if (!createActionRes.ok) {
+        const msg =
+          createActionRes?.data?.message ||
+          `创建动作失败（HTTP ${createActionRes.statusCode}）`;
         throw new Error(msg);
       }
-      window.alert("动作组保存成功");
-      console.log("[action-group] 保存成功", res.data);
-    } catch (err) {
-      console.error("[action-group] 保存失败", err);
-      window.alert(`动作组保存失败：${err.message || "未知错误"}`);
-    } finally {
-      actionGroupSaveBtn.disabled = false;
+      const createdActionId = Number(createActionRes?.data?.data?.action_id);
+      if (!Number.isInteger(createdActionId)) {
+        throw new Error("创建动作成功但未返回有效 action_id");
+      }
+      createdActionIds.push(createdActionId);
     }
+    const payload = {
+      group_name: groupName,
+      user_id: USERID,
+      action_ids: createdActionIds,
+      sequence_orders: [...createdActionIds],
+    };
+    const res = await postJson("/groups/", payload);
+    if (!res.ok) {
+      const msg = res?.data?.message || `保存失败（HTTP ${res.statusCode}）`;
+      throw new Error(msg);
+    }
+    window.alert("动作组保存成功");
+    console.log("[action-group] 保存成功", res.data);
+  } catch (err) {
+    console.error("[action-group] 保存失败", err);
+    window.alert(`动作组保存失败：${err.message || "未知错误"}`);
+  } finally {
+    triggerBtn.disabled = false;
+  }
+}
+
+if (actionGroupSaveBtn) {
+  actionGroupSaveBtn.addEventListener("click", async () => {
+    await handleSaveActionGroupClick(actionGroupSaveBtn);
+  });
+}
+
+if (materialActionGroupSaveBtn) {
+  materialActionGroupSaveBtn.addEventListener("click", async () => {
+    await handleSaveActionGroupClick(materialActionGroupSaveBtn);
   });
 }
 
@@ -342,6 +520,38 @@ async function loadActionGroupById(groupId, { showSuccessAlert = true } = {}) {
   }
 }
 
+async function loadActionGroupByActionIds(actionIds, groupName = "", { showSuccessAlert = true } = {}) {
+  const normalizedActionIds = (Array.isArray(actionIds) ? actionIds : [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isInteger(id));
+  if (normalizedActionIds.length === 0) {
+    throw new Error("当前选项没有有效 action_id");
+  }
+  const actionDetailDict = await fetchActionDetailsInBatches(normalizedActionIds);
+  const mappedActions = normalizedActionIds
+    .map((actionId) => actionDetailDict[actionId] ?? buildDefaultActionDetail(actionId))
+    .map((item) => ({
+      action_id: item.action_id,
+      action_name: item.action_name,
+      duration: item.duration,
+      image_path: item.image_path,
+      preview_data_url: "",
+      joint_angles: [...item.joint_servo_angles],
+      switch_data: 1,
+      sync: false,
+      type: "motion",
+      voice: "",
+    }));
+  actionDataApi.replaceAllActions(mappedActions);
+  const groupNameInput = document.getElementById("editor-action-group-name-input");
+  if (groupNameInput && groupName) {
+    groupNameInput.value = groupName;
+  }
+  if (showSuccessAlert) {
+    window.alert(`动作组加载成功，共 ${mappedActions.length} 条动作`);
+  }
+}
+
 if (actionGroupLoadBtn) {
   actionGroupLoadBtn.addEventListener("click", async () => {
     const groupInput = window.prompt("请输入 group_id", "");
@@ -359,13 +569,41 @@ if (actionGroupLoadBtn) {
   });
 }
 
-// 页面启动后默认加载固定动作组，避免每次手动输入 group_id。
-loadActionGroupById(DEFAULT_BOOT_GROUP_ID, { showSuccessAlert: false }).catch((err) => {
-  console.error("[action-group] 启动默认加载失败", {
-    groupId: DEFAULT_BOOT_GROUP_ID,
-    message: err?.message || err,
+if (materialActionGroupLoadBtn) {
+  materialActionGroupLoadBtn.addEventListener("click", async () => {
+    const selectedOption =
+      materialActionGroupSelectEl?.options?.[materialActionGroupSelectEl.selectedIndex] || null;
+    if (!selectedOption || !selectedOption.value) {
+      window.alert("请先选择动作组");
+      return;
+    }
+    materialActionGroupLoadBtn.disabled = true;
+    try {
+      const selectedActionIds = parseMaybeJsonArray(selectedOption.dataset.actionIds);
+      const selectedGroupName = String(selectedOption.textContent ?? "").trim();
+      await loadActionGroupByActionIds(selectedActionIds, selectedGroupName, {
+        showSuccessAlert: true,
+      });
+    } catch (err) {
+      console.error("[material] 加载动作组失败", err);
+      window.alert(`加载动作组失败：${err.message || "未知错误"}`);
+    } finally {
+      materialActionGroupLoadBtn.disabled = false;
+    }
   });
-});
+}
+
+// 启动时优先使用本地持久化；仅当本地为空时才请求服务端初始动作组。
+if (!hasPersistedActionList()) {
+  loadActionGroupById(DEFAULT_BOOT_GROUP_ID, { showSuccessAlert: false }).catch((err) => {
+    console.error("[action-group] 启动默认加载失败", {
+      groupId: DEFAULT_BOOT_GROUP_ID,
+      message: err?.message || err,
+    });
+  });
+} else {
+  console.info("[action-group] 检测到本地持久化 actionList，跳过启动 GET 加载");
+}
 
 /** 关节滑条与 threePreview 旋转映射（索引与 UI 排列保持一致）。 */
 const slider1 = document.querySelector(

@@ -428,12 +428,9 @@
             <span class="connect-hamburger__label"
               data-i18n="material_action_group">动作组</span>
             <label class="connect-hamburger__select-wrap">
-              <select class="connect-hamburger__select" aria-label="添加动作组">
+              <select id="material-action-group-select" class="connect-hamburger__select" aria-label="添加动作组">
                 <option value selected disabled
                   data-i18n="select_placeholder">请选择</option>
-                <option>动作组A</option>
-                <option>动作组B</option>
-                <option>动作组C</option>
               </select>
             </label>
           </div>
@@ -454,12 +451,9 @@
             <span class="connect-hamburger__label"
               data-i18n="material_bg_music">背景音乐</span>
             <label class="connect-hamburger__select-wrap">
-              <select class="connect-hamburger__select" aria-label="添加背景音乐">
+              <select id="material-bg-music-select" class="connect-hamburger__select" aria-label="添加背景音乐">
                 <option value selected disabled
                   data-i18n="select_placeholder">请选择</option>
-                <option>BGM-01</option>
-                <option>BGM-02</option>
-                <option>BGM-03</option>
               </select>
             </label>
           </div>
@@ -478,13 +472,15 @@
           </div>
           <div class="connect-hamburger__grid">
             <button class="connect-hamburger__action-btn"
-              type="button" data-i18n="material_btn_music">音乐</button>
+              type="button" data-i18n="material_btn_music">播放音乐</button>
             <button class="connect-hamburger__action-btn"
-              type="button" data-i18n="material_btn_expression">表情</button>
+              type="button" data-i18n="material_btn_expression">变换表情</button>
             <button class="connect-hamburger__action-btn"
-              type="button" data-i18n="material_btn_load">加载</button>
+              id="material-action-group-load-btn"
+              type="button" data-i18n="material_btn_load">加载动作组</button>
             <button class="connect-hamburger__action-btn"
-              type="button" data-i18n="material_btn_save">保存</button>
+              id="material-action-group-save-btn"
+              type="button" data-i18n="material_btn_save">保存动作组</button>
           </div>
         </div>
       </section>

@@ -1,10 +1,52 @@
 import { initialActions } from "./data/actions.js";
 
+const ACTION_LIST_STORAGE_KEY = "magosmaster-action-list-v1";
+
 function cloneAction(a) {
   return {
     ...a,
     joint_angles: Array.isArray(a.joint_angles) ? [...a.joint_angles] : [],
   };
+}
+
+function normalizeActionRecord(raw) {
+  const actionId = Number(raw?.action_id);
+  if (!Number.isInteger(actionId)) return null;
+  return {
+    action_id: actionId,
+    action_name: String(raw?.action_name ?? "").trim() || `动作 ${actionId}`,
+    duration: Number(raw?.duration) || 1,
+    image_path: String(raw?.image_path ?? ""),
+    preview_data_url: String(raw?.preview_data_url ?? ""),
+    joint_angles: Array.isArray(raw?.joint_angles) ? [...raw.joint_angles] : [],
+    switch_data: raw?.switch_data ?? 1,
+    sync: Boolean(raw?.sync),
+    type: String(raw?.type ?? "motion"),
+    voice: String(raw?.voice ?? ""),
+  };
+}
+
+function readPersistedActionList() {
+  if (typeof window === "undefined" || !window.localStorage) return [];
+  try {
+    const raw = window.localStorage.getItem(ACTION_LIST_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeActionRecord).filter(Boolean);
+  } catch (err) {
+    console.warn("[actionDataManager] 读取持久化 actionList 失败", err);
+    return [];
+  }
+}
+
+function persistActionList(actionList) {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(ACTION_LIST_STORAGE_KEY, JSON.stringify(actionList));
+  } catch (err) {
+    console.warn("[actionDataManager] 持久化 actionList 失败", err);
+  }
 }
 
 /**
@@ -16,9 +58,15 @@ export function setupActionDataManager({ actionList, onListChanged } = {}) {
     throw new TypeError("setupActionDataManager: actionList 必须为数组");
   }
 
+  const persistedList = readPersistedActionList();
+  if (persistedList.length > 0) {
+    actionList.length = 0;
+    actionList.push(...persistedList.map(cloneAction));
+  }
   let nextId = Math.max(0, ...actionList.map((x) => Number(x.action_id) || 0)) + 1;
 
   const notify = () => {
+    persistActionList(actionList);
     if (typeof onListChanged === "function") onListChanged();
   };
 

@@ -430,6 +430,16 @@ option {
   text-align: center;
 }
 
+/* 英文文案较长（如 Load/Save Action Group），在素材面板内允许两行显示避免溢出。 */
+html[lang="en"] #material-hamburger-panel .connect-hamburger__action-btn {
+  min-height: clamp(46px, 3.4vw, 58px);
+  height: auto;
+  white-space: normal;
+  line-height: 1.15;
+  font-size: clamp(14px, 1.05vw, 19px);
+  padding: clamp(6px, 0.5vw, 10px) clamp(8px, 0.8vw, 12px);
+}
+
 #execute-hamburger-panel .connect-hamburger__action-btn {
   white-space: nowrap;
   font-size: clamp(16px, 1.3vw, 24px);
