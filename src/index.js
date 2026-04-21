@@ -66,6 +66,129 @@ if (musicFileInput && musicFileNameEl) {
 
 const root = document.getElementById("three-root");
 const threePreviewApi = root ? initPreview(root) : null;
+const USERID = 4;
+const ACTION_DETAIL_BATCH_SIZE = 5;
+
+function parseMaybeJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeAngles(angles, targetLen = 10) {
+  const out = Array.isArray(angles) ? angles.map((n) => Number(n)) : [];
+  const normalized = out.map((n) => (Number.isFinite(n) ? n : 90));
+  while (normalized.length < targetLen) normalized.push(90);
+  return normalized.slice(0, targetLen);
+}
+
+function pickActionName(actionId, descriptionText) {
+  if (descriptionText && typeof descriptionText === "object") {
+    const fromObj = String(descriptionText.action_name ?? "").trim();
+    if (fromObj) return fromObj;
+  }
+  if (typeof descriptionText === "string") {
+    const raw = descriptionText.trim();
+    if (!raw) return `动作 ${actionId}`;
+    try {
+      const parsed = JSON.parse(raw);
+      const fromJson = String(parsed?.action_name ?? "").trim();
+      if (fromJson) return fromJson;
+    } catch {
+      // 非 JSON 文本时，直接作为动作名兜底
+      return raw;
+    }
+  }
+  return `动作 ${actionId}`;
+}
+
+function orderActionIdsBySequence(actionIds, sequenceOrders) {
+  const ids = actionIds.map((id) => Number(id)).filter((id) => Number.isInteger(id));
+  if (!Array.isArray(sequenceOrders) || sequenceOrders.length === 0) return ids;
+  const seq = sequenceOrders
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item));
+  if (seq.length === 0) return ids;
+
+  // 兼容两种格式：
+  // 1) sequence_orders 直接存 action_id 顺序
+  // 2) sequence_orders 存 1-based 序号（与 action_ids 同长度）
+  const asActionIds = seq.filter((id) => ids.includes(id));
+  if (asActionIds.length > 0) {
+    const ordered = asActionIds;
+    const remaining = ids.filter((id) => !ordered.includes(id));
+    return [...ordered, ...remaining];
+  }
+  const indexPairs = seq
+    .map((order, index) => ({ index, order }))
+    .filter((x) => x.order >= 1 && x.order <= ids.length)
+    .sort((a, b) => a.order - b.order);
+  if (indexPairs.length === 0) return ids;
+  const orderedByIndex = indexPairs.map((x) => ids[x.index]).filter((id) => Number.isInteger(id));
+  const remaining = ids.filter((id) => !orderedByIndex.includes(id));
+  return [...orderedByIndex, ...remaining];
+}
+
+function buildDefaultActionDetail(actionId) {
+  return {
+    action_id: actionId,
+    action_name: `默认动作 ${actionId}`,
+    duration: 1,
+    image_path: "",
+    joint_servo_angles: normalizeAngles(null),
+  };
+}
+
+async function fetchActionDetailsInBatches(actionIds) {
+  const details = {};
+  for (let i = 0; i < actionIds.length; i += ACTION_DETAIL_BATCH_SIZE) {
+    const batch = actionIds.slice(i, i + ACTION_DETAIL_BATCH_SIZE);
+    const responses = await Promise.all(
+      batch.map(async (actionId) => {
+        try {
+          const res = await getJson(`/actions/${actionId}`);
+          if (!res.ok) {
+            const msg = res?.data?.message || `获取动作 ${actionId} 失败（HTTP ${res.statusCode}）`;
+            console.warn("[action-group] 动作详情缺失，回退默认参数", { actionId, msg });
+            return buildDefaultActionDetail(actionId);
+          }
+          return res.data?.data ?? buildDefaultActionDetail(actionId);
+        } catch (err) {
+          console.warn("[action-group] 动作详情请求异常，回退默认参数", {
+            actionId,
+            err: err?.message || err,
+          });
+          return buildDefaultActionDetail(actionId);
+        }
+      }),
+    );
+    responses.forEach((item) => {
+      if (!item) return;
+      const actionId = Number(item.action_id);
+      if (!Number.isInteger(actionId)) return;
+      const rawAngles = parseMaybeJsonArray(item.servo_angles);
+      const jointServoAngles = normalizeAngles(
+        rawAngles.length > 0 ? rawAngles : item.joint_servo_angles,
+      );
+      details[actionId] = {
+        action_id: actionId,
+        action_name:
+          String(item.action_name ?? "").trim() || pickActionName(actionId, item.description_text),
+        duration: Number(item.duration) || 1,
+        image_path: String(item.image_path ?? ""),
+        joint_servo_angles: jointServoAngles,
+      };
+    });
+  }
+  return details;
+}
 
 mountSubGalleryPanel();
 const actionDataApi = setupActionDataManager({
@@ -77,6 +200,118 @@ setupSubGallerySlider();
 setupSubGalleryPointerPan();
 setupSubGalleryDragReorder();
 wireGalleryActions(actionDataApi, { threePreview: threePreviewApi });
+
+const actionGroupSaveBtn = document.getElementById("action-group-save-btn");
+if (actionGroupSaveBtn) {
+  actionGroupSaveBtn.addEventListener("click", async () => {
+    const groupNameInput = document.getElementById("editor-action-group-name-input");
+    const defaultGroupName = (groupNameInput?.value ?? "").trim() || "未命名动作组";
+    const groupInput = window.prompt("请输入 group_name", defaultGroupName);
+    if (groupInput == null) return;
+    const groupName = groupInput.trim();
+    if (!groupName) {
+      window.alert("group_name 不能为空");
+      return;
+    }
+    if (!Array.isArray(actionList) || actionList.length === 0) {
+      window.alert("当前没有可保存的动作");
+      return;
+    }
+
+    const actionIds = actionList
+      .map((item) => Number(item.action_id))
+      .filter((id) => Number.isInteger(id));
+    if (actionIds.length === 0) {
+      window.alert("动作数据无效，无法保存动作组");
+      return;
+    }
+
+    const sequenceOrders = actionIds.map((_, index) => index + 1);
+    const payload = {
+      group_name: groupName,
+      user_id: USERID,
+      action_ids: actionIds,
+      sequence_orders: sequenceOrders,
+    };
+
+    actionGroupSaveBtn.disabled = true;
+    try {
+      const res = await postJson("/groups/", payload);
+      if (!res.ok) {
+        const msg = res?.data?.message || `保存失败（HTTP ${res.statusCode}）`;
+        throw new Error(msg);
+      }
+      window.alert("动作组保存成功");
+      console.log("[action-group] 保存成功", res.data);
+    } catch (err) {
+      console.error("[action-group] 保存失败", err);
+      window.alert(`动作组保存失败：${err.message || "未知错误"}`);
+    } finally {
+      actionGroupSaveBtn.disabled = false;
+    }
+  });
+}
+
+const actionGroupLoadBtn = document.getElementById("action-group-load-btn");
+if (actionGroupLoadBtn) {
+  actionGroupLoadBtn.addEventListener("click", async () => {
+    const groupInput = window.prompt("请输入 group_id", "");
+    if (groupInput == null) return;
+    const groupId = Number(groupInput);
+    if (!Number.isInteger(groupId)) {
+      window.alert("group_id 必须为整数");
+      return;
+    }
+
+    actionGroupLoadBtn.disabled = true;
+    try {
+      const groupRes = await getJson(`/groups/${groupId}`);
+      if (!groupRes.ok) {
+        const msg = groupRes?.data?.message || `加载动作组失败（HTTP ${groupRes.statusCode}）`;
+        throw new Error(msg);
+      }
+      const group = groupRes.data?.data;
+      if (!group) {
+        throw new Error("动作组数据为空");
+      }
+
+      const actionIds = parseMaybeJsonArray(group.action_ids)
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id));
+      if (actionIds.length === 0) {
+        throw new Error("动作组中没有有效 action_ids");
+      }
+      const sequenceOrders = parseMaybeJsonArray(group.sequence_orders);
+      const orderedActionIds = orderActionIdsBySequence(actionIds, sequenceOrders);
+      const actionDetailDict = await fetchActionDetailsInBatches(orderedActionIds);
+
+      const mappedActions = orderedActionIds
+        .map((actionId) => actionDetailDict[actionId] ?? buildDefaultActionDetail(actionId))
+        .map((item) => ({
+          action_id: item.action_id,
+          action_name: item.action_name,
+          duration: item.duration,
+          image_path: item.image_path,
+          preview_data_url: "",
+          joint_angles: [...item.joint_servo_angles],
+          switch_data: 1,
+          sync: false,
+          type: "motion",
+          voice: "",
+        }));
+
+      actionDataApi.replaceAllActions(mappedActions);
+      const groupNameInput = document.getElementById("editor-action-group-name-input");
+      if (groupNameInput) groupNameInput.value = String(group.group_name ?? "");
+      window.alert(`动作组加载成功，共 ${mappedActions.length} 条动作`);
+    } catch (err) {
+      console.error("[action-group] 加载失败", err);
+      window.alert(`动作组加载失败：${err.message || "未知错误"}`);
+    } finally {
+      actionGroupLoadBtn.disabled = false;
+    }
+  });
+}
 
 const slider1 = document.querySelector(
   ".joint-control[data-joint-control] .joint-control__slider",

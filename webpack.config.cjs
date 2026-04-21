@@ -47,6 +47,7 @@ module.exports = {
     }),
     new webpack.DefinePlugin({
       __MAGOS_STL_FILES__: JSON.stringify(stlFiles),
+      "process.env.USERID": JSON.stringify(USERID),
     }),
   ],
   devServer: {

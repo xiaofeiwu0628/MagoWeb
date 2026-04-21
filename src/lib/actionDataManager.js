@@ -77,10 +77,23 @@ export function setupActionDataManager({ actionList, onListChanged } = {}) {
     notify();
   }
 
+  /** 用一组动作完整覆盖当前列表，并触发 UI 刷新。 */
+  function replaceAllActions(actions) {
+    if (!Array.isArray(actions)) {
+      throw new TypeError("replaceAllActions: actions 必须为数组");
+    }
+    const fresh = actions.map(cloneAction);
+    actionList.length = 0;
+    actionList.push(...fresh);
+    nextId = Math.max(0, ...actionList.map((x) => Number(x.action_id) || 0)) + 1;
+    notify();
+  }
+
   return {
     reloadFromDataFile,
     allocateId,
     removeActionById,
     upsertFromEditor,
+    replaceAllActions,
   };
 }
