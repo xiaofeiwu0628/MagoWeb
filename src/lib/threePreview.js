@@ -12,6 +12,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 
+// #region 全局配置与静态表
 /** 与 gallery 保存/导出共用的截图默认参数（2× 超采样 + 曝光微调）。 */
 export const PREVIEW_CAPTURE_DEFAULTS = Object.freeze({
   supersample: 1,
@@ -76,7 +77,10 @@ const RIM_LIGHT_CONFIG = Object.freeze({
   intensity: 0.52,
   position: new THREE.Vector3(-2.8, 5.6, -4.4),
 });
+// #endregion 全局配置与静态表
 
+// #region 关节状态与滑条映射
+/** 关节节点引用 + 延迟旋转缓存：用于“模型未加载先调角度”的场景。 */
 let bodyMeshRef = null;
 let leftjianMeshRef = null;
 let leftbiMeshRef = null;
@@ -92,6 +96,7 @@ let pendingRightjianRotationX = 0;
 let pendingRightbiRotationY = 0;
 let pendingRighthandRotationY = 0;
 
+/** 写入 pending，并在对应 mesh 可用时立即同步到场景对象。 */
 function applyBodyRotationZ(value) {
   pendingBodyRotationZ = value;
   if (bodyMeshRef) bodyMeshRef.rotation.z = value;
@@ -134,6 +139,7 @@ function sliderValueToAngle(value, min = 0, max = 100) {
   return (t - 0.5) * Math.PI * 2; // -PI..PI
 }
 
+/** 对外给 UI 滑条使用：将线性值映射到弧度，再应用到模型。 */
 export function setBodyRotationZBySlider(value, min = 0, max = 100) {
   applyBodyRotationZ(sliderValueToAngle(value, min, max));
 }
@@ -161,7 +167,9 @@ export function setRightbiRotationYBySlider(value, min = 0, max = 100) {
 export function setRighthandRotationYBySlider(value, min = 0, max = 100) {
   applyRighthandRotationY(sliderValueToAngle(value, min, max));
 }
+// #endregion 关节状态与滑条映射
 
+// #region 模型与截图通用工具
 /**
  * STL 由 webpack 复制到输出目录 `models/`，不经 JS 解析（避免二进制被当成脚本导致报错）。
  * 文件名列表在构建时由 DefinePlugin 注入。
@@ -201,6 +209,7 @@ function disposeObject3D(obj) {
   });
 }
 
+/** 把 STL 总组缩放到统一体量，避免不同模型尺度差异过大。 */
 function fitStlGroup(group, targetMaxDim = 1.85) {
   group.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(group);
@@ -214,6 +223,7 @@ function fitStlGroup(group, targetMaxDim = 1.85) {
   return { box, scale: s };
 }
 
+/** 将模型整体中心平移到原点附近，便于相机自动取景。 */
 function moveGroupCenterToOrigin(group) {
   group.updateMatrixWorld(true);
   const centeredBox = new THREE.Box3().setFromObject(group);
@@ -337,8 +347,11 @@ function setPivotMarkersVisible(group, visible) {
     }
   });
 }
+// #endregion 模型与截图通用工具
 
 export function initPreview(root) {
+  // #region 场景初始化
+  // -------- 场景初始化：Scene / Camera / Renderer / Controls --------
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf3f5fa);
 
@@ -406,11 +419,14 @@ export function initPreview(root) {
     ro = new ResizeObserver(resize);
     ro.observe(root);
   }
+  // #endregion 场景初始化
 
+  // #region STL 加载与层级组装
   const stlUrls = getStlAssetUrls();
   if (stlUrls.length > 0) {
     const meshByKey = new Map();
 
+    // -------- 模型流水线：并行加载 STL -> 组装层级 -> 建立关节节点 --------
     Promise.allSettled(
       stlUrls.map((url) => {
         const loader = new STLLoader();
@@ -509,6 +525,7 @@ export function initPreview(root) {
       rightjianMeshRef = meshByKey.get("Rightjian") || null;
       rightbiMeshRef = meshByKey.get("Rightbi") || null;
       righthandMeshRef = meshByKey.get("Righthand") || null;
+      // 回放之前缓存的旋转值，确保 UI 状态与模型姿态一致。
       applyBodyRotationZ(pendingBodyRotationZ);
       applyLeftjianRotationX(pendingLeftjianRotationX);
       applyLeftbiRotationY(pendingLeftbiRotationY);
@@ -539,8 +556,11 @@ export function initPreview(root) {
   } else {
     console.warn("[threePreview] src/assets/models 中未找到 .stl 文件。");
   }
+  // #endregion STL 加载与层级组装
 
+  // #region 渲染循环
   let raf = 0;
+  // 常驻渲染循环：OrbitControls 阻尼更新 + 场景绘制。
   const tick = () => {
     raf = requestAnimationFrame(tick);
     controls.update();
@@ -549,9 +569,11 @@ export function initPreview(root) {
     renderer.render(scene, camera);
   };
   tick();
+  // #endregion 渲染循环
 
   let disposed = false;
 
+  // #region 截图与导出
   /**
    * 使用离屏 WebGLRenderTarget 渲染一帧，得到 Data URL（可写入 `preview_data_url` 或用于下载）。
    * 画质：`supersample` 在内部以更高分辨率渲染再缩小（抗锯齿）；`captureExposure` 仅截图时微调曝光。
@@ -602,6 +624,7 @@ export function initPreview(root) {
 
     const rtw = width * supersample;
     const rth = height * supersample;
+    // 截图阶段临时改相机宽高比，避免目标图像被拉伸。
     camera.aspect = rtw / rth;
     camera.updateProjectionMatrix();
 
@@ -617,6 +640,7 @@ export function initPreview(root) {
 
     renderer.setRenderTarget(rt);
     renderer.render(scene, camera);
+    // 先读回超采样原图，再按目标尺寸高质量缩小。
     const hiCanvas = renderTargetPixelsToCanvas(renderer, rt, rtw, rth);
     renderer.setRenderTarget(prevTarget);
     rt.dispose();
@@ -669,8 +693,11 @@ export function initPreview(root) {
     triggerDownloadFromDataUrl(dataUrl, filename);
     return dataUrl;
   }
+  // #endregion 截图与导出
 
+  // #region 资源释放
   function dispose() {
+    // 清理顺序：停循环/监听 -> 释放 GPU/控制器 -> 删除 canvas。
     if (disposed) return;
     disposed = true;
     cancelAnimationFrame(raf);
@@ -694,6 +721,7 @@ export function initPreview(root) {
     renderer.dispose();
     root.removeChild(renderer.domElement);
   }
+  // #endregion 资源释放
 
   return { dispose, captureToDataURL, downloadCapture };
 }

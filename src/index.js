@@ -28,6 +28,12 @@ import {
 } from "./lib/gallery.js";
 import { setupActionDataManager } from "./lib/actionDataManager.js";
 
+/**
+ * 前端入口：
+ * 1) 初始化 UI、主题、语言、3D 预览和关节控制
+ * 2) 管理动作列表（本地编辑 + 动作组保存/加载）
+ * 3) 将 7 个滑条实时映射到 threePreview 的模型关节
+ */
 initUiAssets();
 setupI18n();
 setupStatusPanel();
@@ -69,6 +75,7 @@ const threePreviewApi = root ? initPreview(root) : null;
 const USERID = 4;
 const ACTION_DETAIL_BATCH_SIZE = 5;
 
+/** 将后端可能返回的 JSON 字符串/数组统一转换为数组。 */
 function parseMaybeJsonArray(value) {
   if (Array.isArray(value)) return value;
   if (typeof value === "string") {
@@ -82,6 +89,7 @@ function parseMaybeJsonArray(value) {
   return [];
 }
 
+/** 舵机角度标准化：非数字兜底 90，并补齐到固定长度。 */
 function normalizeAngles(angles, targetLen = 10) {
   const out = Array.isArray(angles) ? angles.map((n) => Number(n)) : [];
   const normalized = out.map((n) => (Number.isFinite(n) ? n : 90));
@@ -89,6 +97,7 @@ function normalizeAngles(angles, targetLen = 10) {
   return normalized.slice(0, targetLen);
 }
 
+/** 从 action 描述里提取动作名，兼容纯文本与 JSON 字符串。 */
 function pickActionName(actionId, descriptionText) {
   if (descriptionText && typeof descriptionText === "object") {
     const fromObj = String(descriptionText.action_name ?? "").trim();
@@ -109,6 +118,7 @@ function pickActionName(actionId, descriptionText) {
   return `动作 ${actionId}`;
 }
 
+/** 按 sequence_orders 排序 action_ids，兼容“actionId 顺序”与“序号顺序”。 */
 function orderActionIdsBySequence(actionIds, sequenceOrders) {
   const ids = actionIds.map((id) => Number(id)).filter((id) => Number.isInteger(id));
   if (!Array.isArray(sequenceOrders) || sequenceOrders.length === 0) return ids;
@@ -136,6 +146,7 @@ function orderActionIdsBySequence(actionIds, sequenceOrders) {
   return [...orderedByIndex, ...remaining];
 }
 
+/** 当后端动作缺失/异常时使用的默认动作参数。 */
 function buildDefaultActionDetail(actionId) {
   return {
     action_id: actionId,
@@ -146,6 +157,7 @@ function buildDefaultActionDetail(actionId) {
   };
 }
 
+/** 分批拉取动作详情，避免一次并发过高；失败项回退默认动作。 */
 async function fetchActionDetailsInBatches(actionIds) {
   const details = {};
   for (let i = 0; i < actionIds.length; i += ACTION_DETAIL_BATCH_SIZE) {
@@ -190,6 +202,7 @@ async function fetchActionDetailsInBatches(actionIds) {
   return details;
 }
 
+/** 初始化动作数据管理器并挂接到 sub-gallery 渲染。 */
 mountSubGalleryPanel();
 const actionDataApi = setupActionDataManager({
   actionList,
@@ -201,6 +214,7 @@ setupSubGalleryPointerPan();
 setupSubGalleryDragReorder();
 wireGalleryActions(actionDataApi, { threePreview: threePreviewApi });
 
+/** 「存储动作组」：将当前 actionList 发送到 /api/groups。 */
 const actionGroupSaveBtn = document.getElementById("action-group-save-btn");
 if (actionGroupSaveBtn) {
   actionGroupSaveBtn.addEventListener("click", async () => {
@@ -252,6 +266,7 @@ if (actionGroupSaveBtn) {
   });
 }
 
+/** 「加载动作组」：按 groupId 拉组信息 -> 拉动作详情 -> 排序映射 -> 全量替换列表。 */
 const actionGroupLoadBtn = document.getElementById("action-group-load-btn");
 if (actionGroupLoadBtn) {
   actionGroupLoadBtn.addEventListener("click", async () => {
@@ -313,6 +328,7 @@ if (actionGroupLoadBtn) {
   });
 }
 
+/** 关节滑条与 threePreview 旋转映射（索引与 UI 排列保持一致）。 */
 const slider1 = document.querySelector(
   ".joint-control[data-joint-control] .joint-control__slider",
 );

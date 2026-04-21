@@ -51,6 +51,7 @@ export function setupActionDataManager({ actionList, onListChanged } = {}) {
     joint_angles,
     preview_data_url,
   }) {
+    // 已存在则更新；不存在则按统一字段结构新增一条动作。
     const existing = actionList.find((a) => a.action_id === action_id);
     if (existing) {
       existing.action_name = action_name;
@@ -60,7 +61,6 @@ export function setupActionDataManager({ actionList, onListChanged } = {}) {
         existing.preview_data_url = preview_data_url;
       }
     } else {
-      console.log(actionList)
       actionList.push({
         action_id,
         action_name,

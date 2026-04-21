@@ -16,6 +16,7 @@ let threePreview = null;
 let lastCardDragEndedAt = 0;
 let stripDnDBound = false;
 
+/** 清理卡片拖拽时的“插入前/后”视觉标记。 */
 function clearSubGalleryDropMarkers() {
   if (!subGalleryEl) return;
   subGalleryEl
@@ -23,6 +24,7 @@ function clearSubGalleryDropMarkers() {
     .forEach((el) => el.classList.remove("sub-card--drop-before", "sub-card--drop-after"));
 }
 
+/** 将被拖拽动作移动到目标位置，并立即重渲染动作条。 */
 function reorderActionByDrag(draggedId, insertBeforeIndex) {
   const from = actionList.findIndex((a) => a.action_id === draggedId);
   if (from < 0) return;
@@ -66,6 +68,7 @@ function readJointAnglesForStorage() {
   return out.slice(0, targetLen);
 }
 
+/** 让底部滚动条与动作卡片容器的 scrollLeft 保持同步。 */
 function syncSliderToScroll() {
   if (!subGalleryEl || !subSliderEl) return;
   const max = subGalleryEl.scrollWidth - subGalleryEl.clientWidth;
@@ -199,6 +202,7 @@ export function renderSubGallery(list = actionList) {
 
     card.addEventListener("click", () => {
       if (Date.now() - lastCardDragEndedAt < 280) return;
+      // 避免拖拽结束后的误点击；正常点击时将卡片数据回填到右侧编辑区。
       selectedActionId = action.action_id;
       const nameInput = document.getElementById("editor-action-group-name-input");
       const durInput = document.getElementById("editor-action-group-duration-input");
@@ -383,6 +387,7 @@ export function wireGalleryActions(api, deps = {}) {
       const id = editingId != null ? editingId : allocateId();
       let preview_data_url;
       if (typeof threePreview?.captureToDataURL === "function") {
+        // 保存动作时顺带抓一帧预览图，便于 sub-gallery 卡片展示。
         try {
           preview_data_url = threePreview.captureToDataURL({
             width: 640,

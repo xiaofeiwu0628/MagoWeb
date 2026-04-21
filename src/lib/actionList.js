@@ -1,8 +1,10 @@
 import { initialActions } from "./data/actions.js";
 
+/** 克隆动作对象，避免直接引用初始数据。 */
 function cloneAction(a) {
   return {
     ...a,
+    // 角度数组按值复制，避免编辑时污染源对象。
     joint_angles: Array.isArray(a.joint_angles) ? [...a.joint_angles] : [],
   };
 }
