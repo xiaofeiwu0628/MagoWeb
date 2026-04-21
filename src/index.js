@@ -232,24 +232,45 @@ if (actionGroupSaveBtn) {
       return;
     }
 
-    const actionIds = actionList
-      .map((item) => Number(item.action_id))
-      .filter((id) => Number.isInteger(id));
-    if (actionIds.length === 0) {
+    if (actionList.length === 0) {
       window.alert("动作数据无效，无法保存动作组");
       return;
     }
 
-    const sequenceOrders = actionIds.map((_, index) => index + 1);
-    const payload = {
-      group_name: groupName,
-      user_id: USERID,
-      action_ids: actionIds,
-      sequence_orders: sequenceOrders,
-    };
-
     actionGroupSaveBtn.disabled = true;
     try {
+      // 先创建动作，拿到后端生成的 action_id，再用于创建动作组。
+      const createdActionIds = [];
+      for (const action of actionList) {
+        const actionName = String(action?.action_name ?? "").trim() || "未命名动作";
+        const servoAngles = normalizeAngles(action?.joint_angles);
+        const createActionPayload = {
+          user_id: USERID,
+          duration: Number(action?.duration) || 1,
+          servo_angles: servoAngles,
+          status: true,
+          image_path: action?.image_path || null,
+          description_text: JSON.stringify({ action_name: actionName }),
+        };
+        const createActionRes = await postJson("/actions/", createActionPayload);
+        if (!createActionRes.ok) {
+          const msg =
+            createActionRes?.data?.message ||
+            `创建动作失败（HTTP ${createActionRes.statusCode}）`;
+          throw new Error(msg);
+        }
+        const createdActionId = Number(createActionRes?.data?.data?.action_id);
+        if (!Number.isInteger(createdActionId)) {
+          throw new Error("创建动作成功但未返回有效 action_id");
+        }
+        createdActionIds.push(createdActionId);
+      }
+      const payload = {
+        group_name: groupName,
+        user_id: USERID,
+        action_ids: createdActionIds,
+        sequence_orders: [...createdActionIds],
+      };
       const res = await postJson("/groups/", payload);
       if (!res.ok) {
         const msg = res?.data?.message || `保存失败（HTTP ${res.statusCode}）`;
