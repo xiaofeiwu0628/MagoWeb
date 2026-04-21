@@ -1,5 +1,6 @@
 import { actionList } from "./actionList.js";
 import { PREVIEW_CAPTURE_DEFAULTS } from "./threePreview.js";
+import { API_ORIGIN, postJson } from "./API.js";
 
 const SUB_GALLERY_ID = "sub-gallery";
 const SUB_SLIDER_ID = "sub-gallery-slider";
@@ -66,6 +67,13 @@ function readJointAnglesForStorage() {
   const targetLen = Math.max(10, out.length);
   while (out.length < targetLen) out.push(90);
   return out.slice(0, targetLen);
+}
+
+function toAbsoluteImagePath(maybePath) {
+  const s = String(maybePath ?? "").trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  return new URL(s, API_ORIGIN).toString();
 }
 
 /** 让底部滚动条与动作卡片容器的 scrollLeft 保持同步。 */
@@ -377,7 +385,7 @@ export function wireGalleryActions(api, deps = {}) {
 
   const saveBtn = document.getElementById("editor-action-click-btn");
   if (saveBtn) {
-    saveBtn.addEventListener("click", () => {
+    saveBtn.addEventListener("click", async () => {
       const nameInput = document.getElementById("editor-action-group-name-input");
       const durInput = document.getElementById("editor-action-group-duration-input");
       const name = (nameInput?.value ?? "").trim() || "未命名动作";
@@ -400,14 +408,51 @@ export function wireGalleryActions(api, deps = {}) {
           console.warn("[gallery] 预览截图失败，仍将保存关节数据", err);
         }
       }
+      console.info("[gallery] 保存动作开始", {
+        actionId: id,
+        actionName: name,
+        hasPreviewDataUrl: Boolean(preview_data_url),
+        previewDataUrlLength: preview_data_url ? preview_data_url.length : 0,
+      });
+      let image_path = "";
+      if (preview_data_url) {
+        try {
+          // 截图 dataURL（base64）上传，使用服务端返回路径作为动作图片路径。
+          console.info("[gallery] 开始上传截图", {
+            actionId: id,
+            endpoint: "/uploads/image",
+          });
+          const uploadRes = await postJson("/uploads/image", {
+            image_data_url: preview_data_url,
+          });
+          if (uploadRes.ok) {
+            image_path = toAbsoluteImagePath(uploadRes?.data?.data?.path);
+            console.info("[gallery] 上传截图成功", {
+              actionId: id,
+              returnedPath: uploadRes?.data?.data?.path,
+              finalImagePath: image_path,
+              statusCode: uploadRes.statusCode,
+            });
+          } else {
+            console.warn("[gallery] 上传截图失败，保留本地预览图", uploadRes);
+          }
+        } catch (err) {
+          console.warn("[gallery] 上传截图异常，保留本地预览图", err);
+        }
+      }
       upsertFromEditor({
         action_id: id,
         action_name: name,
         duration: Number.isFinite(duration) ? duration : 1,
         joint_angles,
+        ...(image_path ? { image_path } : {}),
         ...(preview_data_url ? { preview_data_url } : {}),
       });
-      console.log(preview_data_url, "preview_data_url");
+      console.info("[gallery] 保存动作完成", {
+        actionId: id,
+        hasImagePath: Boolean(image_path),
+        imagePath: image_path || "(fallback: preview_data_url)",
+      });
       // 未选中卡片 = 新建：保存后保持未选中，下次保存再分配新 id。
       // 已选中卡片 = 编辑：保持选中，继续覆盖同一条。
       if (editingId == null) {

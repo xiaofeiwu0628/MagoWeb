@@ -50,6 +50,7 @@ export function setupActionDataManager({ actionList, onListChanged } = {}) {
     duration,
     joint_angles,
     preview_data_url,
+    image_path,
   }) {
     // 已存在则更新；不存在则按统一字段结构新增一条动作。
     const existing = actionList.find((a) => a.action_id === action_id);
@@ -60,12 +61,15 @@ export function setupActionDataManager({ actionList, onListChanged } = {}) {
       if (preview_data_url !== undefined) {
         existing.preview_data_url = preview_data_url;
       }
+      if (image_path !== undefined) {
+        existing.image_path = image_path;
+      }
     } else {
       actionList.push({
         action_id,
         action_name,
         duration,
-        image_path: "",
+        image_path: image_path ?? "",
         preview_data_url: preview_data_url ?? "",
         joint_angles: [...joint_angles],
         switch_data: 1,

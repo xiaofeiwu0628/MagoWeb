@@ -1,7 +1,8 @@
 import axios from "axios";
 
 /** 默认 API 根（与 paper_app `API_BASE_URL` 用法一致，可用 `updateApiBaseUrl` 切换）。 */
-const API_BASE_URL = "http://106.53.14.250:3000/api";
+export const API_BASE_URL = "http://106.53.14.250:3000/api";
+export const API_ORIGIN = new URL(API_BASE_URL).origin;
 
 /** 由 initialActions 创建动作组时的默认名称。 */
 export const DEFAULT_UPLOAD_GROUP_NAME = "Magos 本地示例动作组";
