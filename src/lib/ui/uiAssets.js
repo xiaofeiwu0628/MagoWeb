@@ -1,5 +1,6 @@
 /**
- * uiAssets.js — 将 webpack 处理后的 SVG 资源 URL 挂到 document.body.dataset，供 CSS 等使用
+ * @file uiAssets.js — 在入口最早调用：把 webpack 处理后的 SVG URL 赋给页面内 `<img id="asset-*">`，
+ * 并为时间轴节点设置 `background-image`，保证图标与装饰图路径正确。
  */
 import assetVector2 from "../../assets/vector2.svg";
 import assetGroup2 from "../../assets/group2.svg";

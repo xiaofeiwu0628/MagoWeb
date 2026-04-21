@@ -1,6 +1,12 @@
+/**
+ * @file API.js
+ *
+ * 基于 axios 的 JSON 封装：`getJson` / `postJson` / `putJson` / `patchJson` / `deleteJson`，
+ * 统一前缀 `API_BASE_URL`，返回 `{ statusCode, data, ok, response }` 便于业务判断。
+ */
 import axios from "axios";
 
-/** 默认 API 根（与 paper_app `API_BASE_URL` 用法一致，可用 `updateApiBaseUrl` 切换）。 */
+/** 默认 API 根（与 paper_app `API_BASE_URL` 用法一致；部署时可在构建或运行时改为实际域名）。 */
 export const API_BASE_URL = "http://106.53.14.250:3000/api";
 export const API_ORIGIN = new URL(API_BASE_URL).origin;
 

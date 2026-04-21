@@ -349,6 +349,12 @@ function setPivotMarkersVisible(group, visible) {
 }
 // #endregion 模型与截图通用工具
 
+/**
+ * 在指定 DOM 根节点内创建 WebGLRenderer、场景、灯光、OrbitControls，异步加载 STL 组装机器人，
+ * 并返回 `captureToDataURL` / `downloadCapture` / `dispose` 供入口与画廊调用。
+ * @param {HTMLElement} root
+ * @returns {{ dispose: function, captureToDataURL: function, downloadCapture: function }}
+ */
 export function initPreview(root) {
   // #region 场景初始化
   // -------- 场景初始化：Scene / Camera / Renderer / Controls --------

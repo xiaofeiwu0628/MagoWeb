@@ -1,6 +1,7 @@
 /**
- * connectPopover.js — 顶栏「连接/素材/界面/状态」侧栏：定位、开关、设备下拉占位。
- * 「刷新」仅重置设备下拉并触发 onReloadActions（由 actionDataManager 从 data/actions.js 重载列表）。
+ * @file connectPopover.js — 顶栏「连接 / 素材 / 界面 / 状态」汉堡菜单：相对 viewport 定位、互斥展开、
+ * Escape 关闭。连接按钮为 UI 占位；「刷新」重置设备下拉并调用 `onReloadActions`（从 **标准使用数据**
+ * `data/actions.js` 经 `reloadFromDataFile` 重载动作列表）。
  */
 import { getCurrentLocale, t } from "../i18n.js";
 

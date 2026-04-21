@@ -1,5 +1,6 @@
 /**
- * statusPanel.js — 「状态」面板内蓝牙圆点与电量文案的演示状态切换（占位逻辑）
+ * @file statusPanel.js — 「状态」侧栏：蓝牙三态圆点与电量三位数展示；占位逻辑，真实设备接入后可替换。
+ * 暴露 `window.magosStatusPanel` 供控制台或后续模块调试。
  */
 import { getCurrentLocale, t } from "../i18n.js";
 

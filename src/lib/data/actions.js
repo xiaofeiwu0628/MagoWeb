@@ -1,8 +1,14 @@
 /**
- * 本地动作数据（静态模块，不经过网络）。
- * 修改本文件即可变更默认动作列表；刷新页面后从该数据重新载入（见 actionList.js）。
+ * @file actions.js — **标准使用数据（内置演示动作表）**
  *
- * 列表项字段与界面 / actionDataManager 使用的结构一致。
+ * **作用**：在无服务端、无 localStorage、或用户点击连接面板「刷新」恢复默认时，
+ * 为界面提供一组可立即编辑、预览、模拟执行的示例动作（名称、时长、关节角、缩略图路径等）。
+ * 不发起网络请求；修改本文件即可更换默认列表，保存后由 `actionList.js` 克隆为 `actionList`。
+ *
+ * **与「标准」的关系**：这里的 `initialActions` 即项目内约定的「标准/种子」数据，
+ * 用于统一演示与联调；上线环境可改为中性占位图或空数组（需同步调整 `actionList` 判空逻辑）。
+ *
+ * 单条字段需与 `actionDataManager`、底部画廊 `gallery.js` 使用的结构一致。
  */
 export const initialActions = [
   {

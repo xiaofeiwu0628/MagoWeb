@@ -1,3 +1,9 @@
+/**
+ * @file gallery.js
+ *
+ * 底部「动作条」子画廊：挂载 DOM、渲染卡片、拖拽排序、横向滚动与平移、
+ * 与 `actionDataManager` 联动的新建/保存/删除/截图上传，以及卡片选中回填编辑器、双击写回滑条。
+ */
 import { actionList } from "./actionList.js";
 import { PREVIEW_CAPTURE_DEFAULTS } from "./threePreview.js";
 import { API_ORIGIN, postJson } from "./API.js";
@@ -115,6 +121,7 @@ function syncSliderToScroll() {
   subSliderEl.setAttribute("aria-valuetext", `${clamped} / ${subSliderEl.max}`);
 }
 
+/** 若 `#sub-shell-frame` 内尚无子工作区，则注入画廊 DOM 并缓存 `#sub-gallery` 与滚动条引用。 */
 export function mountSubGalleryPanel() {
   const frame = document.getElementById("sub-shell-frame");
   if (!frame) return;
@@ -133,6 +140,7 @@ export function mountSubGalleryPanel() {
   subSliderEl = document.getElementById(SUB_SLIDER_ID);
 }
 
+/** 根据 `actionList`（或传入列表）重绘底部卡片，并同步横向滚动条范围。 */
 export function renderSubGallery(list = actionList) {
   if (!subGalleryEl) return;
 

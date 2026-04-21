@@ -1,3 +1,9 @@
+/**
+ * @file actionDataManager.js
+ *
+ * 动作列表的「单一数据源」封装：启动时合并 localStorage、分配新 id、
+ * 增删改后写回存储并回调 `onListChanged` 刷新画廊；`reloadFromDataFile` 用 `data/actions.js` 重置。
+ */
 import { initialActions } from "./data/actions.js";
 
 const ACTION_LIST_STORAGE_KEY = "magosmaster-action-list-v1";
@@ -9,6 +15,7 @@ function cloneAction(a) {
   };
 }
 
+/** 将 localStorage 反序列化后的弱类型对象规整为统一动作结构；非法则返回 null。 */
 function normalizeActionRecord(raw) {
   const actionId = Number(raw?.action_id);
   if (!Number.isInteger(actionId)) return null;
@@ -26,6 +33,7 @@ function normalizeActionRecord(raw) {
   };
 }
 
+/** 从 localStorage 读取已保存的动作数组；解析失败返回空数组。 */
 function readPersistedActionList() {
   if (typeof window === "undefined" || !window.localStorage) return [];
   try {
@@ -40,6 +48,7 @@ function readPersistedActionList() {
   }
 }
 
+/** 将当前内存中的动作列表序列化写入 localStorage。 */
 function persistActionList(actionList) {
   if (typeof window === "undefined" || !window.localStorage) return;
   try {

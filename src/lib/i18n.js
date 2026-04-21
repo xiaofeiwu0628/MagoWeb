@@ -1,5 +1,8 @@
 /**
- * i18n.js — 多语言文案表、当前语言读写 localStorage、data-i18n 属性批量更新
+ * @file i18n.js
+ *
+ * 多语言：内置 `messages` 表（en / zh-Hans / zh-Hant）、`localStorage` 记忆当前语言、
+ * `setupI18n` 绑定语言下拉并首次 `applyLocale`；`t(key)` 取文案，`notifyLocaleChanged` 通知其它组件。
  */
 const STORAGE_KEY = "magosmaster-i18n-locale";
 

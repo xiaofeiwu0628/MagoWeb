@@ -1,9 +1,9 @@
 /**
- * jointControl.js — 左侧关节区：滑条与数字输入联动，并与 threePreview 关节旋转同步
+ * @file jointControl.js — 左侧关节区：滑条与数字输入联动（含步进按钮），拖动时派发 `input` 供 index 映射到 threePreview。
  *
- * 可复用：标签 + 数值 + 滑条。
- * - 声明式：根节点带 `data-joint-control`，内含 .joint-control__slider 与 .joint-control__value-input（或 .joint-control__value）
- * - 编程式：createJointControl(...) 返回 DOM，可 append 到任意容器
+ * 使用方式：
+ * - **声明式**：根节点 `data-joint-control`，内含 `.joint-control__slider` 与 `.joint-control__value-input`
+ * - **编程式**：`createJointControl(...)` 返回 DOM 片段，可挂载到任意容器
  */
 
 import { getCurrentLocale, t } from "./i18n.js";

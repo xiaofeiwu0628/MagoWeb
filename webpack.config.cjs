@@ -47,12 +47,11 @@ module.exports = {
     }),
     new webpack.DefinePlugin({
       __MAGOS_STL_FILES__: JSON.stringify(stlFiles),
-      "process.env.USERID": JSON.stringify(USERID),
     }),
   ],
   devServer: {
     host: "0.0.0.0",
-    port: 8080,
+    port: 8888,
     static: {
       directory: path.resolve(__dirname, "dist"),
     },

@@ -1,5 +1,5 @@
 /**
- * themeMode.js — 亮/暗主题：下拉与 body.theme-dark、localStorage 同步
+ * @file themeMode.js — 亮/暗主题：下拉 `#theme-style-select` 与 `body.theme-dark`、localStorage 同步。
  */
 export function setupThemeMode({ selectId = "theme-style-select" } = {}) {
   const select = document.getElementById(selectId);

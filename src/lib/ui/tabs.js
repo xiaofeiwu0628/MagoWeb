@@ -1,5 +1,6 @@
 /**
- * tabs.js — 通用 Tab：点击切换 data-tab / data-panel 对应面板的显示与 aria
+ * @file tabs.js — 通用 Tab：点击切换 `data-tab` / `data-panel` 对应面板的 class 与 `aria-selected`；
+ * 可选 `storageKey` 持久化当前选中 tab（如顶栏编辑器子 tab）。
  */
 export function setupThemeTabs({
   tabSelector = ".tabs__item[data-tab]",

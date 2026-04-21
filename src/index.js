@@ -1,3 +1,8 @@
+/**
+ * @file index.js
+ * MagosMaster 单页应用入口：装配 UI、Three 预览、动作列表与服务端同步逻辑。
+ * 详细职责见下方 `init*` 调用处与常量注释。
+ */
 import "./styles/main.css";
 import { initUiAssets } from "./lib/ui/uiAssets.js";
 import { setupThemeTabs } from "./lib/ui/tabs.js";
@@ -30,17 +35,24 @@ import { setupActionDataManager } from "./lib/actionDataManager.js";
 
 const root = document.getElementById("three-root");
 const threePreviewApi = root ? initPreview(root) : null;
+
+/** 写入后端 `RobotActions` / `ActionGroups` 等接口时使用的用户 id，需与库中已有用户一致。 */
 const USERID = 4;
+/** 拉取动作详情时的并发批次大小，减轻服务端压力。 */
 const ACTION_DETAIL_BATCH_SIZE = 5;
+/** 本地无持久化动作列表时，启动后自动 `GET /groups/:id` 拉取的默认动作组 id。 */
 const DEFAULT_BOOT_GROUP_ID = 14;
+/** `actionList` 在 localStorage 中的键；非空则跳过上述默认远程加载。 */
 const ACTION_LIST_STORAGE_KEY = "magosmaster-action-list-v1";
+/** 「模拟执行」时每个动作按 `duration` 拆成的插值步数 = duration * 该帧率。 */
 const SIMULATION_FRAMES_PER_SECOND = 30;
 
 /**
- * 前端入口：
- * 1) 初始化 UI、主题、语言、3D 预览和关节控制
- * 2) 管理动作列表（本地编辑 + 动作组保存/加载）
- * 3) 将 7 个滑条实时映射到 threePreview 的模型关节
+ * 前端入口（bundle 挂载点）：
+ * 1) 初始化 UI、主题、语言、3D 预览与关节控制
+ * 2) 管理动作列表：本地编辑、持久化、与服务端动作组互相同步
+ * 3) 将前 7 个关节滑条实时映射到 threePreview 中对应 mesh 的旋转
+ * 4) 音乐/素材面板的列表与上传、模拟执行整条动作序列
  */
 initUiAssets();
 setupI18n();
@@ -85,6 +97,7 @@ if (musicFileInput && musicFileNameEl) {
   syncMusicFileNameLabel();
 }
 
+/** 编辑器区域「请选择音乐」下拉：从服务端拉已上传音乐文件名列表。 */
 async function loadMusicListToSelect() {
   if (!musicSelectEl) return;
   const placeholderOption = musicSelectEl.querySelector('option[value=""]');
@@ -114,12 +127,14 @@ async function loadMusicListToSelect() {
   }
 }
 
+/** 去掉最后一个扩展名，用于音乐下拉展示友好名称。 */
 function stripFileExtension(filename) {
   const name = String(filename ?? "").trim();
   if (!name) return "";
   return name.replace(/\.[^.]+$/, "");
 }
 
+/** 素材面板「背景音乐」下拉：同上接口，展示名去掉扩展名。 */
 async function loadMusicListToMaterialSelect() {
   if (!materialBgMusicSelectEl) return;
   const placeholderOption = materialBgMusicSelectEl.querySelector('option[value=""]');
@@ -149,6 +164,7 @@ async function loadMusicListToMaterialSelect() {
   }
 }
 
+/** 将用户选择的文件读成 `data:...;base64,...`，供 `POST /uploads/music`。 */
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -200,6 +216,7 @@ if (musicUploadBtn) {
 loadMusicListToSelect();
 loadMusicListToMaterialSelect();
 
+/** 判断 localStorage 中是否已有非空动作列表，用于决定是否做启动时远程默认加载。 */
 function hasPersistedActionList() {
   try {
     const raw = window.localStorage.getItem(ACTION_LIST_STORAGE_KEY);
@@ -211,6 +228,7 @@ function hasPersistedActionList() {
   }
 }
 
+/** 素材面板「动作组」下拉：`GET /groups?user_id=USERID`，option 上挂 `data-action-ids` 供加载用。 */
 async function loadMaterialActionGroupsToSelect() {
   if (!materialActionGroupSelectEl) return;
   const placeholderOption = materialActionGroupSelectEl.querySelector('option[value=""]');
@@ -385,8 +403,11 @@ setupSubGalleryPointerPan();
 setupSubGalleryDragReorder();
 wireGalleryActions(actionDataApi, { threePreview: threePreviewApi });
 
-/** 「存储动作组」：将当前 actionList 发送到 /api/groups。 */
 const actionGroupSaveBtn = document.getElementById("action-group-save-btn");
+/**
+ * 「存储动作组」：依次 `POST /actions/` 创建每条动作，再 `POST /groups/` 绑定 action_ids。
+ * @param {HTMLButtonElement} triggerBtn 用于禁用防重复点击的按钮
+ */
 async function handleSaveActionGroupClick(triggerBtn) {
   const groupNameInput = document.getElementById("editor-action-group-name-input");
   const defaultGroupName = (groupNameInput?.value ?? "").trim() || "未命名动作组";
@@ -468,8 +489,11 @@ if (materialActionGroupSaveBtn) {
   });
 }
 
-/** 「加载动作组」：按 groupId 拉组信息 -> 拉动作详情 -> 排序映射 -> 全量替换列表。 */
 const actionGroupLoadBtn = document.getElementById("action-group-load-btn");
+/**
+ * 按 `group_id` 加载动作组：`GET /groups/:id` → 批量 `GET /actions/:id` → 写入内存并刷新画廊。
+ * @param {{ showSuccessAlert?: boolean }} opts 启动静默加载时可关成功弹窗
+ */
 async function loadActionGroupById(groupId, { showSuccessAlert = true } = {}) {
   const normalizedGroupId = Number(groupId);
   if (!Number.isInteger(normalizedGroupId)) {
@@ -522,6 +546,9 @@ async function loadActionGroupById(groupId, { showSuccessAlert = true } = {}) {
   }
 }
 
+/**
+ * 素材下拉已带 `action_ids` 时直接拉详情，不请求 `GET /groups/:id`（名称来自 option 文案）。
+ */
 async function loadActionGroupByActionIds(actionIds, groupName = "", { showSuccessAlert = true } = {}) {
   const normalizedActionIds = (Array.isArray(actionIds) ? actionIds : [])
     .map((id) => Number(id))
@@ -607,7 +634,7 @@ if (!hasPersistedActionList()) {
   console.info("[action-group] 检测到本地持久化 actionList，跳过启动 GET 加载");
 }
 
-/** 关节滑条与 threePreview 旋转映射（索引与 UI 排列保持一致）。 */
+/* ---------- 关节滑条 ↔ 模型：第 1 个为身体 roll，2–7 为左右肩/臂/手（与 HTML 顺序一致） ---------- */
 const slider1 = document.querySelector(
   ".joint-control[data-joint-control] .joint-control__slider",
 );
@@ -694,12 +721,14 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** 将数值限制在滑条 min/max 内，避免模拟执行写出界。 */
 function clampToSliderRange(value, slider) {
   const min = Number(slider.getAttribute("min") ?? 0);
   const max = Number(slider.getAttribute("max") ?? 180);
   return Math.min(max, Math.max(min, value));
 }
 
+/** 模拟执行优先读持久化 JSON（与 actionDataManager 同键），保证与画廊展示一致。 */
 function readPersistedActionListForSimulation() {
   try {
     const raw = window.localStorage.getItem(ACTION_LIST_STORAGE_KEY);
@@ -711,6 +740,7 @@ function readPersistedActionListForSimulation() {
   }
 }
 
+/** 单条动作：从前 7 个滑条当前值线性插值到 `action.joint_angles`，每帧派发 `input` 驱动 3D。 */
 async function animateActionByDuration(action) {
   const targetSliders = sliders.slice(0, 7).filter(Boolean);
   if (targetSliders.length === 0) return;
@@ -739,6 +769,7 @@ async function animateActionByDuration(action) {
   }
 }
 
+/** 模拟执行过程中禁用前 7 个关节滑条，避免与动画抢状态。 */
 function setSliderInteractionLocked(locked) {
   const targetSliders = sliders.slice(0, 7).filter(Boolean);
   targetSliders.forEach((slider) => {
