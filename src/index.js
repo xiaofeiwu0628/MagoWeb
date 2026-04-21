@@ -28,6 +28,14 @@ import {
 } from "./lib/gallery.js";
 import { setupActionDataManager } from "./lib/actionDataManager.js";
 
+const root = document.getElementById("three-root");
+const threePreviewApi = root ? initPreview(root) : null;
+const USERID = 4;
+const ACTION_DETAIL_BATCH_SIZE = 5;
+const DEFAULT_BOOT_GROUP_ID = 14;
+const ACTION_LIST_STORAGE_KEY = "magosmaster-action-list-v1";
+const SIMULATION_FRAMES_PER_SECOND = 30;
+
 /**
  * 前端入口：
  * 1) 初始化 UI、主题、语言、3D 预览和关节控制
@@ -58,6 +66,7 @@ const materialBgMusicSelectEl = document.getElementById("material-bg-music-selec
 const materialActionGroupSelectEl = document.getElementById("material-action-group-select");
 const materialActionGroupLoadBtn = document.getElementById("material-action-group-load-btn");
 const materialActionGroupSaveBtn = document.getElementById("material-action-group-save-btn");
+const executeSimulateBtn = document.getElementById("execute-simulate-btn");
 const syncMusicFileNameLabel = () => {
   if (!musicFileNameEl) return;
   const locale = getCurrentLocale();
@@ -190,13 +199,6 @@ if (musicUploadBtn) {
 
 loadMusicListToSelect();
 loadMusicListToMaterialSelect();
-
-const root = document.getElementById("three-root");
-const threePreviewApi = root ? initPreview(root) : null;
-const USERID = 4;
-const ACTION_DETAIL_BATCH_SIZE = 5;
-const DEFAULT_BOOT_GROUP_ID = 14;
-const ACTION_LIST_STORAGE_KEY = "magosmaster-action-list-v1";
 
 function hasPersistedActionList() {
   try {
@@ -686,6 +688,83 @@ if (slider7) {
   };
   slider7.addEventListener("input", syncRighthandYaw);
   syncRighthandYaw();
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function clampToSliderRange(value, slider) {
+  const min = Number(slider.getAttribute("min") ?? 0);
+  const max = Number(slider.getAttribute("max") ?? 180);
+  return Math.min(max, Math.max(min, value));
+}
+
+function readPersistedActionListForSimulation() {
+  try {
+    const raw = window.localStorage.getItem(ACTION_LIST_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function animateActionByDuration(action) {
+  const targetSliders = sliders.slice(0, 7).filter(Boolean);
+  if (targetSliders.length === 0) return;
+  const actionAngles = Array.isArray(action?.joint_angles) ? action.joint_angles : [];
+  const startValues = targetSliders.map((slider) => Number(slider.value) || 90);
+  const endValues = targetSliders.map((slider, idx) => {
+    const raw = Number(actionAngles[idx]);
+    const fallback = startValues[idx];
+    const normalized = Number.isFinite(raw) ? raw : fallback;
+    return clampToSliderRange(normalized, slider);
+  });
+
+  const durationSec = Number(action?.duration);
+  const safeDurationSec = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 1;
+  const totalFrames = Math.max(1, Math.round(safeDurationSec * SIMULATION_FRAMES_PER_SECOND));
+  const frameDelayMs = (safeDurationSec * 1000) / totalFrames;
+
+  for (let frame = 1; frame <= totalFrames; frame += 1) {
+    const t = frame / totalFrames;
+    targetSliders.forEach((slider, idx) => {
+      const value = startValues[idx] + (endValues[idx] - startValues[idx]) * t;
+      slider.value = String(Math.round(value));
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await sleep(frameDelayMs);
+  }
+}
+
+function setSliderInteractionLocked(locked) {
+  const targetSliders = sliders.slice(0, 7).filter(Boolean);
+  targetSliders.forEach((slider) => {
+    slider.disabled = locked;
+  });
+}
+
+if (executeSimulateBtn) {
+  executeSimulateBtn.addEventListener("click", async () => {
+    const persisted = readPersistedActionListForSimulation();
+    const sourceActions = persisted.length > 0 ? persisted : actionList;
+    if (!Array.isArray(sourceActions) || sourceActions.length === 0) {
+      window.alert("没有可模拟执行的动作数据");
+      return;
+    }
+    executeSimulateBtn.disabled = true;
+    setSliderInteractionLocked(true);
+    try {
+      for (const action of sourceActions) {
+        await animateActionByDuration(action);
+      }
+    } finally {
+      setSliderInteractionLocked(false);
+      executeSimulateBtn.disabled = false;
+    }
+  });
 }
 
 setupConnectPopover({ onReloadActions: actionDataApi.reloadFromDataFile });
