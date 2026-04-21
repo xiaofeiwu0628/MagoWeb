@@ -44,19 +44,29 @@ export function setupActionDataManager({ actionList, onListChanged } = {}) {
     return true;
   }
 
-  function upsertFromEditor({ action_id, action_name, duration, joint_angles }) {
+  function upsertFromEditor({
+    action_id,
+    action_name,
+    duration,
+    joint_angles,
+    preview_data_url,
+  }) {
     const existing = actionList.find((a) => a.action_id === action_id);
     if (existing) {
       existing.action_name = action_name;
       existing.duration = duration;
       existing.joint_angles = [...joint_angles];
+      if (preview_data_url !== undefined) {
+        existing.preview_data_url = preview_data_url;
+      }
     } else {
+      console.log(actionList)
       actionList.push({
         action_id,
         action_name,
         duration,
         image_path: "",
-        preview_data_url: "",
+        preview_data_url: preview_data_url ?? "",
         joint_angles: [...joint_angles],
         switch_data: 1,
         sync: false,

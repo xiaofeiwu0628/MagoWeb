@@ -1,4 +1,5 @@
 import { actionList } from "./actionList.js";
+import { PREVIEW_CAPTURE_DEFAULTS } from "./threePreview.js";
 
 const SUB_GALLERY_ID = "sub-gallery";
 const SUB_SLIDER_ID = "sub-gallery-slider";
@@ -10,6 +11,7 @@ let selectedActionId = null;
 let removeActionById = () => {};
 let allocateId = () => 1;
 let upsertFromEditor = () => {};
+let threePreview = null;
 
 let lastCardDragEndedAt = 0;
 let stripDnDBound = false;
@@ -348,11 +350,14 @@ export function setupSubGalleryDragReorder() {
 
 /**
  * 将 actionDataManager 的写操作接到画廊与「保存动作」按钮。
+ * @param {{ removeActionById?: function, allocateId?: function, upsertFromEditor?: function }} api
+ * @param {{ threePreview?: { captureToDataURL?: function, downloadCapture?: function } | null }} [deps]
  */
-export function wireGalleryActions(api) {
+export function wireGalleryActions(api, deps = {}) {
   removeActionById = typeof api.removeActionById === "function" ? api.removeActionById : () => {};
   allocateId = typeof api.allocateId === "function" ? api.allocateId : () => 1;
   upsertFromEditor = typeof api.upsertFromEditor === "function" ? api.upsertFromEditor : () => {};
+  threePreview = deps.threePreview ?? null;
 
   const newBtn = document.getElementById("editor-action-new-btn");
   if (newBtn) {
@@ -376,16 +381,52 @@ export function wireGalleryActions(api) {
       const joint_angles = readJointAnglesForStorage();
       const editingId = selectedActionId;
       const id = editingId != null ? editingId : allocateId();
+      let preview_data_url;
+      if (typeof threePreview?.captureToDataURL === "function") {
+        try {
+          preview_data_url = threePreview.captureToDataURL({
+            width: 640,
+            height: 480,
+            mime: "image/jpeg",
+            quality: 0.9,
+            ...PREVIEW_CAPTURE_DEFAULTS,
+          });
+        } catch (err) {
+          console.warn("[gallery] 预览截图失败，仍将保存关节数据", err);
+        }
+      }
       upsertFromEditor({
         action_id: id,
         action_name: name,
         duration: Number.isFinite(duration) ? duration : 1,
         joint_angles,
+        ...(preview_data_url ? { preview_data_url } : {}),
       });
+      console.log(preview_data_url, "preview_data_url");
       // 未选中卡片 = 新建：保存后保持未选中，下次保存再分配新 id。
       // 已选中卡片 = 编辑：保持选中，继续覆盖同一条。
       if (editingId == null) {
         selectedActionId = null;
+      }
+    });
+  }
+
+  const exportPreviewBtn = document.getElementById("editor-preview-export-btn");
+  if (exportPreviewBtn) {
+    exportPreviewBtn.addEventListener("click", () => {
+      if (typeof threePreview?.downloadCapture !== "function") {
+        console.warn("[gallery] 预览未初始化，无法导出");
+        return;
+      }
+      try {
+        threePreview.downloadCapture({
+          width: 1280,
+          height: 960,
+          mime: "image/png",
+          ...PREVIEW_CAPTURE_DEFAULTS,
+        });
+      } catch (err) {
+        console.warn("[gallery] 导出预览图失败", err);
       }
     });
   }

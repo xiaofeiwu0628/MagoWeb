@@ -64,6 +64,9 @@ if (musicFileInput && musicFileNameEl) {
   syncMusicFileNameLabel();
 }
 
+const root = document.getElementById("three-root");
+const threePreviewApi = root ? initPreview(root) : null;
+
 mountSubGalleryPanel();
 const actionDataApi = setupActionDataManager({
   actionList,
@@ -73,10 +76,7 @@ renderSubGallery();
 setupSubGallerySlider();
 setupSubGalleryPointerPan();
 setupSubGalleryDragReorder();
-wireGalleryActions(actionDataApi);
-
-const root = document.getElementById("three-root");
-if (root) initPreview(root);
+wireGalleryActions(actionDataApi, { threePreview: threePreviewApi });
 
 const slider1 = document.querySelector(
   ".joint-control[data-joint-control] .joint-control__slider",
@@ -175,8 +175,3 @@ if (motorToggleBtn) {
     motorToggleBtn.textContent = isOpen ? "解锁舵机" : "关闭舵机";
   });
 }
-
-
-const res1 = await getJson(`/actions/${4}`)
-const res2 = await getJson(`/actions/${4}`)
-console.log(res1.data.data.servo_angles)
