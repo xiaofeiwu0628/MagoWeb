@@ -15,9 +15,6 @@ import {
   API_BASE_URL,
   getJson,
   postJson,
-  putJson,
-  deleteJson,
-  patchJson,
 } from "./lib/network/index.js";
 import {
   initPreview,

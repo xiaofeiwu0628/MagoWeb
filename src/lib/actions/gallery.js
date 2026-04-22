@@ -69,7 +69,10 @@ function readJointAnglesForStorage() {
     ".joint-control[data-joint-control] .joint-control__slider",
   );
   const out = [];
-  sliders.forEach((s) => out.push(Number(s.value) || 90));
+  sliders.forEach((s) => {
+    const value = Number(s.value);
+    out.push(Number.isFinite(value) ? value : 90);
+  });
   const targetLen = Math.max(10, out.length);
   while (out.length < targetLen) out.push(90);
   return out.slice(0, targetLen);
