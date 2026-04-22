@@ -351,15 +351,23 @@ function setPivotMarkersVisible(group, visible) {
 
 /**
  * 在指定 DOM 根节点内创建 WebGLRenderer、场景、灯光、OrbitControls，异步加载 STL 组装机器人，
- * 并返回 `captureToDataURL` / `downloadCapture` / `dispose` 供入口与画廊调用。
+ * 并返回 `captureToDataURL` / `downloadCapture` / `setBackgroundImageFromUrl` / `clearBackgroundImage` / `dispose` 供入口与画廊调用。
  * @param {HTMLElement} root
- * @returns {{ dispose: function, captureToDataURL: function, downloadCapture: function }}
+ * @returns {{
+ *   dispose: function,
+ *   captureToDataURL: function,
+ *   downloadCapture: function,
+ *   setBackgroundImageFromUrl: function,
+ *   clearBackgroundImage: function,
+ * }}
  */
 export function initPreview(root) {
   // #region 场景初始化
   // -------- 场景初始化：Scene / Camera / Renderer / Controls --------
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xf3f5fa);
+  const defaultBackgroundColor = new THREE.Color(0xf3f5fa);
+  scene.background = defaultBackgroundColor;
+  let backgroundTexture = null;
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   camera.position.set(0, 0, 0);
@@ -701,6 +709,50 @@ export function initPreview(root) {
   }
   // #endregion 截图与导出
 
+  // #region 场景背景
+  function disposeBackgroundTexture() {
+    if (!backgroundTexture) return;
+    backgroundTexture.dispose();
+    backgroundTexture = null;
+  }
+
+  function clearBackgroundImage() {
+    disposeBackgroundTexture();
+    scene.background = defaultBackgroundColor;
+  }
+
+  /**
+   * 将模型预览背景切换为图片（URL / blob URL）。
+   * @param {string} imageUrl
+   * @returns {Promise<void>}
+   */
+  function setBackgroundImageFromUrl(imageUrl) {
+    const url = String(imageUrl || "").trim();
+    if (!url) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const loader = new THREE.TextureLoader();
+      loader.load(
+        url,
+        (texture) => {
+          if ("colorSpace" in texture) {
+            texture.colorSpace = THREE.SRGBColorSpace;
+          }
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          disposeBackgroundTexture();
+          backgroundTexture = texture;
+          scene.background = texture;
+          resolve();
+        },
+        undefined,
+        (error) => {
+          reject(error || new Error("背景图片加载失败"));
+        },
+      );
+    });
+  }
+  // #endregion 场景背景
+
   // #region 资源释放
   function dispose() {
     // 清理顺序：停循环/监听 -> 释放 GPU/控制器 -> 删除 canvas。
@@ -720,6 +772,7 @@ export function initPreview(root) {
     if (axesHelper.parent) scene.remove(axesHelper);
     if (unitMarker.parent) scene.remove(unitMarker);
     if (rimLight.parent) scene.remove(rimLight);
+    clearBackgroundImage();
     unitMarker.geometry?.dispose();
     unitMarker.material?.dispose();
     if (stlGroup.parent) scene.remove(stlGroup);
@@ -729,5 +782,5 @@ export function initPreview(root) {
   }
   // #endregion 资源释放
 
-  return { dispose, captureToDataURL, downloadCapture };
+  return { dispose, captureToDataURL, downloadCapture, setBackgroundImageFromUrl, clearBackgroundImage };
 }

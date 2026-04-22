@@ -11,7 +11,14 @@ import {
   setupStatusPanel,
   setupConnectPopover,
 } from "./lib/ui/index.js";
-import { getJson, postJson, putJson, deleteJson, patchJson } from "./lib/network/index.js";
+import {
+  API_BASE_URL,
+  getJson,
+  postJson,
+  putJson,
+  deleteJson,
+  patchJson,
+} from "./lib/network/index.js";
 import {
   initPreview,
   setBodyRotationZBySlider,
@@ -77,10 +84,13 @@ const musicFileNameEl = document.getElementById("editor-music-file-name");
 const musicUploadBtn = document.getElementById("editor-music-upload-btn");
 const musicSelectEl = document.getElementById("editor-music-select");
 const materialBgMusicSelectEl = document.getElementById("material-bg-music-select");
+const materialBgImageSelectEl = document.getElementById("material-bg-image-select");
 const materialActionGroupSelectEl = document.getElementById("material-action-group-select");
 const materialActionGroupLoadBtn = document.getElementById("material-action-group-load-btn");
 const materialActionGroupSaveBtn = document.getElementById("material-action-group-save-btn");
 const executeSimulateBtn = document.getElementById("execute-simulate-btn");
+const BG_IMAGE_CACHE_NAME = "magosmaster-bg-images-cache-v1";
+const bgImageObjectUrlByName = new Map();
 const syncMusicFileNameLabel = () => {
   if (!musicFileNameEl) return;
   const locale = getCurrentLocale();
@@ -217,6 +227,161 @@ if (musicUploadBtn) {
 
 loadMusicListToSelect();
 loadMusicListToMaterialSelect();
+
+function revokeBackgroundObjectUrls() {
+  bgImageObjectUrlByName.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // 忽略 URL 回收失败
+    }
+  });
+  bgImageObjectUrlByName.clear();
+}
+
+function normalizeNameList(names) {
+  return (Array.isArray(names) ? names : [])
+    .map((name) => String(name ?? "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function getBackgroundDownloadApiUrl(filename) {
+  return `${API_BASE_URL}/uploads/backgroundImages/${encodeURIComponent(filename)}/download`;
+}
+
+async function openBackgroundImageCache() {
+  if (!("caches" in window)) return null;
+  return caches.open(BG_IMAGE_CACHE_NAME);
+}
+
+async function readBackgroundBlobFromCache(filename) {
+  const cache = await openBackgroundImageCache();
+  if (!cache) return null;
+  const request = new Request(getBackgroundDownloadApiUrl(filename), { method: "GET" });
+  const res = await cache.match(request);
+  if (!res || !res.ok) return null;
+  return res.blob();
+}
+
+async function cacheBackgroundBlob(filename, blob) {
+  const cache = await openBackgroundImageCache();
+  if (!cache) return;
+  const request = new Request(getBackgroundDownloadApiUrl(filename), { method: "GET" });
+  const response = new Response(blob, {
+    status: 200,
+    headers: {
+      "Content-Type": blob.type || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000",
+    },
+  });
+  await cache.put(request, response);
+}
+
+async function ensureBackgroundObjectUrl(filename) {
+  const cachedUrl = bgImageObjectUrlByName.get(filename);
+  if (cachedUrl) return cachedUrl;
+  const blob = await readBackgroundBlobFromCache(filename);
+  if (!blob) return "";
+  const objectUrl = URL.createObjectURL(blob);
+  bgImageObjectUrlByName.set(filename, objectUrl);
+  return objectUrl;
+}
+
+async function applyBackgroundObjectUrlToThree(objectUrl) {
+  if (!objectUrl) return;
+  if (threePreviewApi && typeof threePreviewApi.setBackgroundImageFromUrl === "function") {
+    await threePreviewApi.setBackgroundImageFromUrl(objectUrl);
+    return;
+  }
+  if (!root) return;
+  root.style.backgroundImage = `url("${objectUrl}")`;
+  root.style.backgroundSize = "cover";
+  root.style.backgroundPosition = "center";
+  root.style.backgroundRepeat = "no-repeat";
+}
+
+async function downloadBackgroundBlobByFilename(filename) {
+  const downloadUrl = `${getBackgroundDownloadApiUrl(filename)}?_ts=${Date.now()}`;
+  const res = await fetch(downloadUrl, {
+    method: "GET",
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`背景图下载失败（HTTP ${res.status}）`);
+  }
+  return res.blob();
+}
+
+async function downloadBackgroundImageAndApply(filename) {
+  if (!filename) return;
+  const blob = await downloadBackgroundBlobByFilename(filename);
+  await cacheBackgroundBlob(filename, blob);
+  const prevObjectUrl = bgImageObjectUrlByName.get(filename);
+  if (prevObjectUrl) {
+    try {
+      URL.revokeObjectURL(prevObjectUrl);
+    } catch {
+      // 忽略 URL 回收失败
+    }
+  }
+  const objectUrl = URL.createObjectURL(blob);
+  bgImageObjectUrlByName.set(filename, objectUrl);
+  await applyBackgroundObjectUrlToThree(objectUrl);
+}
+
+function fillBackgroundImageSelect(names) {
+  if (!materialBgImageSelectEl) return;
+  const placeholderOption = materialBgImageSelectEl.querySelector('option[value=""]');
+  materialBgImageSelectEl.innerHTML = "";
+  if (placeholderOption) {
+    materialBgImageSelectEl.appendChild(placeholderOption);
+  }
+  const normalizedNames = normalizeNameList(names);
+  for (const filename of normalizedNames) {
+    const opt = document.createElement("option");
+    opt.value = filename;
+    opt.textContent = stripFileExtension(filename) || filename;
+    materialBgImageSelectEl.appendChild(opt);
+  }
+}
+
+async function loadBackgroundImagesFromServer() {
+  if (!materialBgImageSelectEl) return;
+  try {
+    const res = await getJson("/uploads/backgroundImages");
+    if (!res.ok) {
+      const msg = res?.data?.message || `获取背景图片列表失败（HTTP ${res.statusCode}）`;
+      throw new Error(msg);
+    }
+    const serverRows = Array.isArray(res?.data?.data) ? res.data.data : [];
+    const serverNames = serverRows
+      .map((item) => String(item?.filename ?? "").trim())
+      .filter(Boolean);
+    fillBackgroundImageSelect(serverNames);
+    console.info("[material] 背景图列表加载完成", { count: serverNames.length });
+  } catch (err) {
+    console.warn("[material] 背景图列表加载失败", err);
+  }
+}
+
+if (materialBgImageSelectEl) {
+  materialBgImageSelectEl.addEventListener("change", async () => {
+    const filename = String(materialBgImageSelectEl.value ?? "").trim();
+    if (!filename) return;
+    try {
+      await downloadBackgroundImageAndApply(filename);
+      console.info("[material] 背景图已通过 API 下载并应用", { filename });
+    } catch (err) {
+      console.warn("[material] 背景图下载失败，尝试使用本地缓存", err);
+      const cachedObjectUrl = await ensureBackgroundObjectUrl(filename);
+      await applyBackgroundObjectUrlToThree(cachedObjectUrl);
+    }
+  });
+}
+
+revokeBackgroundObjectUrls();
+loadBackgroundImagesFromServer();
 
 /** 判断 localStorage 中是否已有非空动作列表，用于决定是否做启动时远程默认加载。 */
 function hasPersistedActionList() {
