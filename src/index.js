@@ -4,9 +4,14 @@
  * 详细职责见下方 `init*` 调用处与常量注释。
  */
 import "./styles/main.css";
-import { initUiAssets } from "./lib/ui/uiAssets.js";
-import { setupThemeTabs } from "./lib/ui/tabs.js";
-import { getJson, postJson, putJson, deleteJson, patchJson } from "./lib/API.js";
+import {
+  initUiAssets,
+  setupThemeMode,
+  setupThemeTabs,
+  setupStatusPanel,
+  setupConnectPopover,
+} from "./lib/ui/index.js";
+import { getJson, postJson, putJson, deleteJson, patchJson } from "./lib/network/index.js";
 import {
   initPreview,
   setBodyRotationZBySlider,
@@ -16,22 +21,19 @@ import {
   setRightbiRotationYBySlider,
   setRightjianRotationXBySlider,
   setRighthandRotationYBySlider,
-} from "./lib/threePreview.js";
-import { setupThemeMode } from "./lib/ui/themeMode.js";
-import { getCurrentLocale, setupI18n, t } from "./lib/i18n.js";
-import { setupStatusPanel } from "./lib/ui/statusPanel.js";
-import { setupJointControls } from "./lib/jointControl.js";
-import { setupConnectPopover } from "./lib/ui/connectPopover.js";
-import { actionList } from "./lib/actionList.js";
+} from "./lib/preview/index.js";
+import { getCurrentLocale, setupI18n, t } from "./lib/localization/index.js";
+import { setupJointControls } from "./lib/controls/index.js";
 import {
+  actionList,
+  setupActionDataManager,
   mountSubGalleryPanel,
   renderSubGallery,
   setupSubGallerySlider,
   setupSubGalleryPointerPan,
   setupSubGalleryDragReorder,
   wireGalleryActions,
-} from "./lib/gallery.js";
-import { setupActionDataManager } from "./lib/actionDataManager.js";
+} from "./lib/actions/index.js";
 
 const root = document.getElementById("three-root");
 const threePreviewApi = root ? initPreview(root) : null;

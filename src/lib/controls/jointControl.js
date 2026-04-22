@@ -6,7 +6,7 @@
  * - **编程式**：`createJointControl(...)` 返回 DOM 片段，可挂载到任意容器
  */
 
-import { getCurrentLocale, t } from "./i18n.js";
+import { getCurrentLocale, t } from "../localization/i18n.js";
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));

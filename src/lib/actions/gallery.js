@@ -5,8 +5,8 @@
  * 与 `actionDataManager` 联动的新建/保存/删除/截图上传，以及卡片选中回填编辑器、双击写回滑条。
  */
 import { actionList } from "./actionList.js";
-import { PREVIEW_CAPTURE_DEFAULTS } from "./threePreview.js";
-import { API_ORIGIN, postJson } from "./API.js";
+import { PREVIEW_CAPTURE_DEFAULTS } from "../preview/threePreview.js";
+import { API_ORIGIN, postJson } from "../network/API.js";
 
 const SUB_GALLERY_ID = "sub-gallery";
 const SUB_SLIDER_ID = "sub-gallery-slider";
