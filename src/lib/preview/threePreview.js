@@ -89,13 +89,13 @@ let pendingRighthandRotationY = 0;
  * 滑条最小值 -> minDeg，滑条最大值 -> maxDeg
  */
 const JOINT_ROTATION_LIMITS = Object.freeze({
-  headX: { minDeg: -180, maxDeg: 180 },
-  leftjianX: { minDeg: -180, maxDeg: 180 },
-  leftbiY: { minDeg: -180, maxDeg: 180 },
-  lefthandY: { minDeg: -180, maxDeg: 180 },
-  rightjianX: { minDeg: -180, maxDeg: 180 },
-  rightbiY: { minDeg: -180, maxDeg: 180 },
-  righthandY: { minDeg: -180, maxDeg: 180 },
+  headX: { minDeg: -30, maxDeg: 30 },
+  leftjianX: { minDeg: -90, maxDeg: 90 },
+  leftbiY: { minDeg: -90, maxDeg: 90 },
+  lefthandY: { minDeg: -90, maxDeg: 90 },
+  rightjianX: { minDeg: -90, maxDeg: 90 },
+  rightbiY: { minDeg: -90, maxDeg: 90 },
+  righthandY: { minDeg: -90, maxDeg: 90 },
 });
 
 /** 写入 pending，并在对应 mesh 可用时立即同步到场景对象。 */
