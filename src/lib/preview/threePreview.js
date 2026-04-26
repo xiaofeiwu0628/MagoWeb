@@ -64,6 +64,21 @@ const RIM_LIGHT_CONFIG = Object.freeze({
   intensity: 2,
   position: new THREE.Vector3(-2.8, 5.6, -4.4),
 });
+/**
+ * 轮廓补光位置模式：
+ * - "fixed": 使用 RIM_LIGHT_CONFIG.position 固定位置（默认）
+ * - "follow-camera": 跟随摄像机当前角度
+ */
+const RIM_LIGHT_POSITION_MODE = "follow-camera";
+const RIM_LIGHT_FOLLOW_CONFIG = Object.freeze({
+  distance: 6.5,
+  lift: 1.1,
+});
+
+/** 坐标轴默认显示开关：false=默认隐藏，true=默认显示。 */
+const SHOW_AXES_HELPER = false;
+/** 红色单位球默认显示开关：false=默认隐藏，true=默认显示。 */
+const SHOW_UNIT_MARKER = false;
 // #endregion 全局配置与静态表
 
 // #region 关节状态与滑条映射
@@ -429,11 +444,29 @@ export function initPreview(root) {
     RIM_LIGHT_CONFIG.color,
     RIM_LIGHT_CONFIG.intensity,
   );
-  rimLight.position.copy(RIM_LIGHT_CONFIG.position);
+  const rimFollowDir = new THREE.Vector3();
+  const updateRimLightPosition = () => {
+    if (RIM_LIGHT_POSITION_MODE === "follow-camera") {
+      rimFollowDir.subVectors(camera.position, controls.target);
+      if (rimFollowDir.lengthSq() < 1e-8) {
+        rimLight.position.copy(RIM_LIGHT_CONFIG.position);
+      } else {
+        rimFollowDir
+          .normalize()
+          .multiplyScalar(RIM_LIGHT_FOLLOW_CONFIG.distance);
+        rimFollowDir.y += RIM_LIGHT_FOLLOW_CONFIG.lift;
+        rimLight.position.copy(rimFollowDir);
+      }
+      return;
+    }
+    rimLight.position.copy(RIM_LIGHT_CONFIG.position);
+  };
+  updateRimLightPosition();
   scene.add(rimLight);
 
   // 坐标轴（X:红, Y:绿, Z:蓝），长度 1 单位。
   const axesHelper = new THREE.AxesHelper(1);
+  axesHelper.visible = SHOW_AXES_HELPER;
   scene.add(axesHelper);
   // 1 单位长度指示器：在 (1, 0, 0) 放置一个小球。
   const unitMarker = new THREE.Mesh(
@@ -441,6 +474,7 @@ export function initPreview(root) {
     new THREE.MeshBasicMaterial({ color: 0xff3333 }),
   );
   unitMarker.position.set(1, 0, 0);
+  unitMarker.visible = SHOW_UNIT_MARKER;
   scene.add(unitMarker);
 
   const modelGroup = new THREE.Group();
@@ -639,6 +673,7 @@ export function initPreview(root) {
   const tick = () => {
     raf = requestAnimationFrame(tick);
     controls.update();
+    updateRimLightPosition();
     // const t = performance.now() * 0.0004;
     // stlGroup.rotation.y = Math.sin(t) * 0.06;
     renderer.render(scene, camera);

@@ -52,6 +52,8 @@ const DEFAULT_BOOT_GROUP_ID = 14;
 const ACTION_LIST_STORAGE_KEY = "magosmaster-action-list-v1";
 /** 「模拟执行」时每个动作按 `duration` 拆成的插值步数 = duration * 该帧率。 */
 const SIMULATION_FRAMES_PER_SECOND = 30;
+/** 素材面板「背景图片」当前选择的持久化键。 */
+const BG_IMAGE_SELECTED_STORAGE_KEY = "magosmaster-selected-bg-image-v1";
 
 /**
  * 前端入口（bundle 挂载点）：
@@ -247,6 +249,27 @@ function getBackgroundDownloadApiUrl(filename) {
   return `${API_BASE_URL}/uploads/backgroundImages/${encodeURIComponent(filename)}/download`;
 }
 
+function persistSelectedBackgroundFilename(filename) {
+  try {
+    const name = String(filename ?? "").trim();
+    if (!name) {
+      window.localStorage.removeItem(BG_IMAGE_SELECTED_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(BG_IMAGE_SELECTED_STORAGE_KEY, name);
+  } catch {
+    // 忽略 localStorage 不可用场景
+  }
+}
+
+function getPersistedBackgroundFilename() {
+  try {
+    return String(window.localStorage.getItem(BG_IMAGE_SELECTED_STORAGE_KEY) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
 async function openBackgroundImageCache() {
   if (!("caches" in window)) return null;
   return caches.open(BG_IMAGE_CACHE_NAME);
@@ -356,6 +379,14 @@ async function loadBackgroundImagesFromServer() {
       .map((item) => String(item?.filename ?? "").trim())
       .filter(Boolean);
     fillBackgroundImageSelect(serverNames);
+    const persistedName = getPersistedBackgroundFilename();
+    if (
+      persistedName &&
+      Array.from(materialBgImageSelectEl.options).some((opt) => opt.value === persistedName)
+    ) {
+      materialBgImageSelectEl.value = persistedName;
+      materialBgImageSelectEl.dispatchEvent(new Event("change", { bubbles: true }));
+    }
     console.info("[material] 背景图列表加载完成", { count: serverNames.length });
   } catch (err) {
     console.warn("[material] 背景图列表加载失败", err);
@@ -365,6 +396,7 @@ async function loadBackgroundImagesFromServer() {
 if (materialBgImageSelectEl) {
   materialBgImageSelectEl.addEventListener("change", async () => {
     const filename = String(materialBgImageSelectEl.value ?? "").trim();
+    persistSelectedBackgroundFilename(filename);
     if (!filename) return;
     try {
       await downloadBackgroundImageAndApply(filename);
