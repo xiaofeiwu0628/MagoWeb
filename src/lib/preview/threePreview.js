@@ -17,7 +17,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 /** 与 gallery 保存/导出共用的截图默认参数（2× 超采样 + 曝光微调）。 */
 export const PREVIEW_CAPTURE_DEFAULTS = Object.freeze({
   supersample: 1,
-  captureExposure: 1.36,
+  captureExposure: 1.5,
 });
 
 const FALLBACK_OBJ_FILES = [
@@ -61,7 +61,7 @@ const MODEL_COLOR_MAP = Object.freeze({
 /** 方案一：顶部/轮廓补光参数（提升头顶部暗部与轮廓层次）。 */
 const RIM_LIGHT_CONFIG = Object.freeze({
   color: 0xf3f6ff,
-  intensity: 0.52,
+  intensity: 2,
   position: new THREE.Vector3(-2.8, 5.6, -4.4),
 });
 // #endregion 全局配置与静态表
@@ -419,9 +419,9 @@ export function initPreview(root) {
   controls.enableDamping = true;
   controls.target.set(0, 1, 0);
 
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x444466, 1.1);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444466, 1.2);
   scene.add(hemi);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.85);
+  const dir = new THREE.DirectionalLight(0xffffff, 1.0);
   dir.position.set(4, 8, 5);
   scene.add(dir);
   // 头后上方轮廓补光：拉开秃瓢顶部边缘，减轻暗部发闷。
@@ -682,6 +682,16 @@ export function initPreview(root) {
       typeof options.captureExposure === "number"
         ? options.captureExposure
         : PREVIEW_CAPTURE_DEFAULTS.captureExposure;
+    // 仅截图时增加一档亮度补偿，避免导出图相比预览偏暗。
+    const captureExposureBoost =
+      typeof options.captureExposureBoost === "number"
+        ? options.captureExposureBoost
+        : 1.12;
+    const effectiveCaptureExposure = THREE.MathUtils.clamp(
+      captureExposure * captureExposureBoost,
+      0.5,
+      3.0,
+    );
 
     controls.update();
 
@@ -703,7 +713,7 @@ export function initPreview(root) {
     camera.aspect = rtw / rth;
     camera.updateProjectionMatrix();
 
-    renderer.toneMappingExposure = prevToneExposure * captureExposure;
+    renderer.toneMappingExposure = prevToneExposure * effectiveCaptureExposure;
 
     const rt = new THREE.WebGLRenderTarget(rtw, rth, {
       minFilter: THREE.LinearFilter,
@@ -712,6 +722,10 @@ export function initPreview(root) {
       type: THREE.UnsignedByteType,
       depthBuffer: true,
     });
+    // 关键：离屏 RT 也使用 sRGB，避免 readPixels 后图像偏暗。
+    if ("colorSpace" in rt.texture) {
+      rt.texture.colorSpace = THREE.SRGBColorSpace;
+    }
 
     renderer.setRenderTarget(rt);
     renderer.render(scene, camera);
