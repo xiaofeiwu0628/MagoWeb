@@ -262,12 +262,22 @@
 
                               <span class="editor-action-group__label"
                                 data-i18n="editor_group_duration">动作使用时长</span>
-                              <input type="text" inputmode="decimal"
-                                class="editor-action-group__input"
-                                id="editor-action-group-duration-input"
-                                value="1.0"
-                                data-i18n-aria="editor_group_duration_input_aria"
-                                aria-label="动作使用时长输入框" />
+                              <div class="editor-action-group__duration-control">
+                                <button type="button"
+                                  class="editor-action-group__step-btn"
+                                  id="editor-action-group-duration-dec-btn"
+                                  aria-label="动作时长减少 0.1">-</button>
+                                <input type="text" inputmode="decimal"
+                                  class="editor-action-group__input editor-action-group__input--duration"
+                                  id="editor-action-group-duration-input"
+                                  value="1.0"
+                                  data-i18n-aria="editor_group_duration_input_aria"
+                                  aria-label="动作使用时长输入框" />
+                                <button type="button"
+                                  class="editor-action-group__step-btn"
+                                  id="editor-action-group-duration-inc-btn"
+                                  aria-label="动作时长增加 0.1">+</button>
+                              </div>
 
                               <button type="button"
                                 class="editor-top-tabs__btn"

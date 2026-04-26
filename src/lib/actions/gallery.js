@@ -19,9 +19,49 @@ let removeActionById = () => {};
 let allocateId = () => 1;
 let upsertFromEditor = () => {};
 let threePreview = null;
+const DURATION_STEP = 0.1;
 
 let lastCardDragEndedAt = 0;
 let stripDnDBound = false;
+
+function parseDurationValue(raw, fallback = 1) {
+  const num = Number(String(raw ?? "").trim().replace(",", "."));
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function normalizeDurationValue(value, fallback = 1) {
+  const safe = Number.isFinite(value) ? value : fallback;
+  const rounded = Math.round(safe * 10) / 10;
+  return Math.max(0, rounded);
+}
+
+function formatDurationValue(value) {
+  return normalizeDurationValue(value).toFixed(1);
+}
+
+function adjustDurationInputValue(inputEl, delta) {
+  if (!inputEl) return;
+  const current = parseDurationValue(inputEl.value, 1);
+  inputEl.value = formatDurationValue(current + delta);
+  inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function setupDurationStepButtons() {
+  const durationInput = document.getElementById("editor-action-group-duration-input");
+  const decBtn = document.getElementById("editor-action-group-duration-dec-btn");
+  const incBtn = document.getElementById("editor-action-group-duration-inc-btn");
+  if (!durationInput || !decBtn || !incBtn) return;
+  if (durationInput.dataset.stepBound === "1") return;
+  durationInput.dataset.stepBound = "1";
+
+  const normalizeInputDisplay = () => {
+    durationInput.value = formatDurationValue(parseDurationValue(durationInput.value, 1));
+  };
+  normalizeInputDisplay();
+  decBtn.addEventListener("click", () => adjustDurationInputValue(durationInput, -DURATION_STEP));
+  incBtn.addEventListener("click", () => adjustDurationInputValue(durationInput, DURATION_STEP));
+  durationInput.addEventListener("blur", normalizeInputDisplay);
+}
 
 /** 清理卡片拖拽时的“插入前/后”视觉标记。 */
 function clearSubGalleryDropMarkers() {
@@ -403,6 +443,7 @@ export function wireGalleryActions(api, deps = {}) {
   allocateId = typeof api.allocateId === "function" ? api.allocateId : () => 1;
   upsertFromEditor = typeof api.upsertFromEditor === "function" ? api.upsertFromEditor : () => {};
   threePreview = deps.threePreview ?? null;
+  setupDurationStepButtons();
 
   const newBtn = document.getElementById("editor-action-new-btn");
   if (newBtn) {
@@ -422,7 +463,7 @@ export function wireGalleryActions(api, deps = {}) {
       const nameInput = document.getElementById("editor-action-group-name-input");
       const durInput = document.getElementById("editor-action-group-duration-input");
       const name = (nameInput?.value ?? "").trim() || "未命名动作";
-      const duration = Number(String(durInput?.value ?? "1").replace(",", "."));
+      const duration = parseDurationValue(durInput?.value ?? "1", 1);
       const joint_angles = readJointAnglesForStorage();
       const editingId = selectedActionId;
       const id = editingId != null ? editingId : allocateId();
@@ -476,7 +517,7 @@ export function wireGalleryActions(api, deps = {}) {
       upsertFromEditor({
         action_id: id,
         action_name: name,
-        duration: Number.isFinite(duration) ? duration : 1,
+        duration: normalizeDurationValue(duration, 1),
         joint_angles,
         ...(image_path ? { image_path } : {}),
         ...(preview_data_url ? { preview_data_url } : {}),
