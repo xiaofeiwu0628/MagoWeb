@@ -5,10 +5,10 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 const modelsDir = path.resolve(__dirname, "src/assets/models");
-const stlFiles = fs.existsSync(modelsDir)
+const objFiles = fs.existsSync(modelsDir)
   ? fs
       .readdirSync(modelsDir)
-      .filter((name) => name.toLowerCase().endsWith(".stl"))
+      .filter((name) => name.toLowerCase().endsWith(".obj"))
       .sort()
   : [];
 
@@ -46,7 +46,7 @@ module.exports = {
       ],
     }),
     new webpack.DefinePlugin({
-      __MAGOS_STL_FILES__: JSON.stringify(stlFiles),
+      __MAGOS_OBJ_FILES__: JSON.stringify(objFiles),
     }),
   ],
   devServer: {

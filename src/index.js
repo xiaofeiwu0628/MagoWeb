@@ -18,7 +18,7 @@ import {
 } from "./lib/network/index.js";
 import {
   initPreview,
-  setBodyRotationZBySlider,
+  setHeadRotationXBySlider,
   setLeftbiRotationYBySlider,
   setLeftjianRotationXBySlider,
   setLefthandRotationYBySlider,
@@ -799,22 +799,20 @@ if (!hasPersistedActionList()) {
 }
 
 /* ---------- 关节滑条 ↔ 模型：第 1 个为身体 roll，2–7 为左右肩/臂/手（与 HTML 顺序一致） ---------- */
-const slider1 = document.querySelector(
-  ".joint-control[data-joint-control] .joint-control__slider",
-);
-if (slider1) {
-  const syncBodyRoll = () => {
-    const min = Number(slider1.getAttribute("min") ?? 0);
-    const max = Number(slider1.getAttribute("max") ?? 180);
-    setBodyRotationZBySlider(slider1.value, min, max);
-  };
-  slider1.addEventListener("input", syncBodyRoll);
-  syncBodyRoll();
-}
-
 const sliders = Array.from(
   document.querySelectorAll(".joint-control[data-joint-control] .joint-control__slider"),
 );
+const slider1 = sliders[0];
+if (slider1) {
+  const syncHeadRotationX = () => {
+    const min = Number(slider1.getAttribute("min") ?? 0);
+    const max = Number(slider1.getAttribute("max") ?? 180);
+    setHeadRotationXBySlider(slider1.value, min, max);
+  };
+  slider1.addEventListener("input", syncHeadRotationX);
+  syncHeadRotationX();
+}
+
 const slider2 = sliders[1];
 if (slider2) {
   const syncLeftjianPitch = () => {

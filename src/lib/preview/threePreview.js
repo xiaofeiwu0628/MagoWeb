@@ -1,6 +1,6 @@
-/* global __MAGOS_STL_FILES__, __webpack_public_path__ */
+/* global __MAGOS_OBJ_FILES__, __webpack_public_path__ */
 /**
- * threePreview.js — Three.js 场景：加载 STL、关节层级、与左侧滑条联动的旋转
+ * threePreview.js — Three.js 场景：加载 OBJ、关节层级、与左侧滑条联动的旋转
  *
  * 画质方案（主画布与离屏截图一致）：
  * - **sRGB**：`renderer.outputColorSpace = SRGBColorSpace`
@@ -10,7 +10,8 @@
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 
 // #region 全局配置与静态表
 /** 与 gallery 保存/导出共用的截图默认参数（2× 超采样 + 曝光微调）。 */
@@ -19,28 +20,18 @@ export const PREVIEW_CAPTURE_DEFAULTS = Object.freeze({
   captureExposure: 1.36,
 });
 
-const FALLBACK_STL_FILES = [
-  "body.stl",
-  "Dizuo.stl",
-  "Erduo.stl",
-  "Head.stl",
-  "Hudiejie.stl",
-  "Leftbi.stl",
-  "Lefthand.stl",
-  "Leftjian.stl",
-  "Maozi.stl",
-  "Rightbi.stl",
-  "Righthand.stl",
-  "Rightjian.stl",
-  "Xianshiqi.stl",
-  "Yuanpan.stl",
-  "Zuiba.stl",
+const FALLBACK_OBJ_FILES = [
+  "body.obj",
+  "Head.obj",
+  "Leftbi.obj",
+  "Lefthand.obj",
+  "Leftjian.obj",
+  "Rightbi.obj",
+  "Righthand.obj",
+  "Rightjian.obj",
 ];
 
 const MODEL_HIERARCHY = [
-  ["Head", "Erduo"],
-  ["Head", "Zuiba"],
-  ["Head", "Maozi"],
   ["Leftjian", "Leftbi"],
   ["Leftbi", "Lefthand"],
   ["Rightjian", "Rightbi"],
@@ -48,10 +39,6 @@ const MODEL_HIERARCHY = [
   ["body", "Head"],
   ["body", "Leftjian"],
   ["body", "Rightjian"],
-  ["body", "Dizuo"],
-  ["body", "Yuanpan"],
-  ["body", "Xianshiqi"],
-  ["body", "Hudiejie"],
 ];
 
 const JOINT_LOCAL_PIVOTS = {
@@ -88,7 +75,8 @@ let lefthandMeshRef = null;
 let rightjianMeshRef = null;
 let rightbiMeshRef = null;
 let righthandMeshRef = null;
-let pendingBodyRotationZ = 0;
+let headMeshRef = null;
+let pendingHeadRotationX = 0;
 let pendingLeftjianRotationX = 0;
 let pendingLeftbiRotationY = 0;
 let pendingLefthandRotationY = 0;
@@ -96,10 +84,25 @@ let pendingRightjianRotationX = 0;
 let pendingRightbiRotationY = 0;
 let pendingRighthandRotationY = 0;
 
+/**
+ * 关节旋转限位（单位：度）
+ * 滑条最小值 -> minDeg，滑条最大值 -> maxDeg
+ */
+const JOINT_ROTATION_LIMITS = Object.freeze({
+  headX: { minDeg: -180, maxDeg: 180 },
+  leftjianX: { minDeg: -180, maxDeg: 180 },
+  leftbiY: { minDeg: -180, maxDeg: 180 },
+  lefthandY: { minDeg: -180, maxDeg: 180 },
+  rightjianX: { minDeg: -180, maxDeg: 180 },
+  rightbiY: { minDeg: -180, maxDeg: 180 },
+  righthandY: { minDeg: -180, maxDeg: 180 },
+});
+
 /** 写入 pending，并在对应 mesh 可用时立即同步到场景对象。 */
-function applyBodyRotationZ(value) {
-  pendingBodyRotationZ = value;
-  if (bodyMeshRef) bodyMeshRef.rotation.z = value;
+function applyHearRotationX(value) {
+  // 关节一旋转目标由 body 改为 Hand（若 Hand 不存在则回退到 body）。
+  pendingHeadRotationX = value;
+  if (headMeshRef) headMeshRef.rotation.x = value;
 }
 
 function applyLeftjianRotationX(value) {
@@ -132,55 +135,80 @@ function applyRighthandRotationY(value) {
   if (righthandMeshRef) righthandMeshRef.rotation.y = value;
 }
 
-function sliderValueToAngle(value, min = 0, max = 100) {
+function mapSliderToLimitedAngle(value, min = 0, max = 100, minDeg = -180, maxDeg = 180) {
   const n = Number(value);
-  const range = Math.max(1, Number(max) - Number(min));
-  const t = (n - Number(min)) / range; // 0..1
-  return (t - 0.5) * Math.PI * 2; // -PI..PI
+  const sliderMin = Number(min);
+  const sliderMax = Number(max);
+  const range = Math.max(1, sliderMax - sliderMin);
+  const rawT = (n - sliderMin) / range;
+  const t = Math.min(1, Math.max(0, rawT));
+  const deg = Number(minDeg) + (Number(maxDeg) - Number(minDeg)) * t;
+  return THREE.MathUtils.degToRad(deg);
 }
 
 /** 对外给 UI 滑条使用：将线性值映射到弧度，再应用到模型。 */
-export function setBodyRotationZBySlider(value, min = 0, max = 100) {
-  applyBodyRotationZ(sliderValueToAngle(value, min, max));
+export function setHeadRotationXBySlider(value, min = 0, max = 100) {
+  const limit = JOINT_ROTATION_LIMITS.headX;
+  applyHearRotationX(
+    mapSliderToLimitedAngle(value, min, max, limit.minDeg, limit.maxDeg),
+  );
 }
 
 export function setLeftjianRotationXBySlider(value, min = 0, max = 100) {
-  applyLeftjianRotationX(sliderValueToAngle(value, min, max));
+  const limit = JOINT_ROTATION_LIMITS.leftjianX;
+  applyLeftjianRotationX(
+    mapSliderToLimitedAngle(value, min, max, limit.minDeg, limit.maxDeg),
+  );
 }
 
 export function setLeftbiRotationYBySlider(value, min = 0, max = 100) {
-  applyLeftbiRotationY(sliderValueToAngle(value, min, max));
+  const limit = JOINT_ROTATION_LIMITS.leftbiY;
+  applyLeftbiRotationY(
+    mapSliderToLimitedAngle(value, min, max, limit.minDeg, limit.maxDeg),
+  );
 }
 
 export function setLefthandRotationYBySlider(value, min = 0, max = 100) {
-  applyLefthandRotationY(sliderValueToAngle(value, min, max));
+  const limit = JOINT_ROTATION_LIMITS.lefthandY;
+  applyLefthandRotationY(
+    mapSliderToLimitedAngle(value, min, max, limit.minDeg, limit.maxDeg),
+  );
 }
 
 export function setRightjianRotationXBySlider(value, min = 0, max = 100) {
-  applyRightjianRotationX(sliderValueToAngle(value, min, max));
+  const limit = JOINT_ROTATION_LIMITS.rightjianX;
+  applyRightjianRotationX(
+    mapSliderToLimitedAngle(value, min, max, limit.minDeg, limit.maxDeg),
+  );
 }
 
 export function setRightbiRotationYBySlider(value, min = 0, max = 100) {
-  applyRightbiRotationY(sliderValueToAngle(value, min, max));
+  const limit = JOINT_ROTATION_LIMITS.rightbiY;
+  applyRightbiRotationY(
+    mapSliderToLimitedAngle(value, min, max, limit.minDeg, limit.maxDeg),
+  );
 }
 
 export function setRighthandRotationYBySlider(value, min = 0, max = 100) {
-  applyRighthandRotationY(sliderValueToAngle(value, min, max));
+  const limit = JOINT_ROTATION_LIMITS.righthandY;
+  applyRighthandRotationY(
+    mapSliderToLimitedAngle(value, min, max, limit.minDeg, limit.maxDeg),
+  );
 }
 // #endregion 关节状态与滑条映射
 
 // #region 模型与截图通用工具
 /**
- * STL 由 webpack 复制到输出目录 `models/`，不经 JS 解析（避免二进制被当成脚本导致报错）。
+ * OBJ 由 webpack 复制到输出目录 `models/`，不经 JS 解析（避免静态资源被当成脚本导致报错）。
  * 文件名列表在构建时由 DefinePlugin 注入。
  */
-function getStlAssetUrls() {
+function getObjAssetUrls() {
   const injectedFiles =
-    typeof __MAGOS_STL_FILES__ !== "undefined" &&
-    Array.isArray(__MAGOS_STL_FILES__)
-      ? __MAGOS_STL_FILES__
+    typeof __MAGOS_OBJ_FILES__ !== "undefined" &&
+    Array.isArray(__MAGOS_OBJ_FILES__)
+      ? __MAGOS_OBJ_FILES__
       : [];
-  const files = injectedFiles.length > 0 ? injectedFiles : FALLBACK_STL_FILES;
+  const files = injectedFiles.length > 0 ? injectedFiles : FALLBACK_OBJ_FILES;
   let base =
     typeof __webpack_public_path__ !== "undefined"
       ? __webpack_public_path__
@@ -189,7 +217,7 @@ function getStlAssetUrls() {
   else if (!base.endsWith("/")) base += "/";
   if (injectedFiles.length === 0) {
     console.warn(
-      "[threePreview] __MAGOS_STL_FILES__ 为空，使用 FALLBACK_STL_FILES 尝试加载。",
+      "[threePreview] __MAGOS_OBJ_FILES__ 为空，使用 FALLBACK_OBJ_FILES 尝试加载。",
     );
   }
   return [...files]
@@ -209,7 +237,7 @@ function disposeObject3D(obj) {
   });
 }
 
-/** 把 STL 总组缩放到统一体量，避免不同模型尺度差异过大。 */
+/** 把模型总组缩放到统一体量，避免不同模型尺度差异过大。 */
 function fitStlGroup(group, targetMaxDim = 1.85) {
   group.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(group);
@@ -234,7 +262,11 @@ function moveGroupCenterToOrigin(group) {
 
 function getModelKeyFromUrl(url) {
   const filename = decodeURIComponent(url.split("/").pop() || "");
-  return filename.replace(/\.stl$/i, "");
+  return filename.replace(/\.obj$/i, "");
+}
+
+function getMtlUrlFromObjUrl(objUrl) {
+  return objUrl.replace(/\.obj(\?.*)?$/i, ".mtl$1");
 }
 
 function reparentKeepWorldTransform(child, newParent) {
@@ -350,7 +382,7 @@ function setPivotMarkersVisible(group, visible) {
 // #endregion 模型与截图通用工具
 
 /**
- * 在指定 DOM 根节点内创建 WebGLRenderer、场景、灯光、OrbitControls，异步加载 STL 组装机器人，
+ * 在指定 DOM 根节点内创建 WebGLRenderer、场景、灯光、OrbitControls，异步加载 OBJ 组装机器人，
  * 并返回 `captureToDataURL` / `downloadCapture` / `setBackgroundImageFromUrl` / `clearBackgroundImage` / `dispose` 供入口与画廊调用。
  * @param {HTMLElement} root
  * @returns {{
@@ -411,8 +443,8 @@ export function initPreview(root) {
   unitMarker.position.set(1, 0, 0);
   scene.add(unitMarker);
 
-  const stlGroup = new THREE.Group();
-  scene.add(stlGroup);
+  const modelGroup = new THREE.Group();
+  scene.add(modelGroup);
 
   root.appendChild(renderer.domElement);
 
@@ -435,53 +467,81 @@ export function initPreview(root) {
   }
   // #endregion 场景初始化
 
-  // #region STL 加载与层级组装
-  const stlUrls = getStlAssetUrls();
-  if (stlUrls.length > 0) {
+  // #region OBJ 加载与层级组装
+  const objUrls = getObjAssetUrls();
+  if (objUrls.length > 0) {
     const meshByKey = new Map();
 
-    // -------- 模型流水线：并行加载 STL -> 组装层级 -> 建立关节节点 --------
+    // -------- 模型流水线：并行加载 OBJ -> 组装层级 -> 建立关节节点 --------
     Promise.allSettled(
-      stlUrls.map((url) => {
-        const loader = new STLLoader();
-        return loader.loadAsync(url).then((geometry) => {
-          geometry.computeVertexNormals();
+      objUrls.map((url) => {
+        const loader = new OBJLoader();
+        const mtlLoader = new MTLLoader();
+        const mtlUrl = getMtlUrlFromObjUrl(url);
+        const loadObj = () => loader.loadAsync(url);
+        return mtlLoader
+          .loadAsync(mtlUrl)
+          .then((materials) => {
+            materials.preload();
+            loader.setMaterials(materials);
+            return loadObj();
+          })
+          .catch(() => loadObj())
+          .then((obj) => {
           const modelKey = getModelKeyFromUrl(url);
           const colorHex = MODEL_COLOR_MAP[modelKey] ?? 0xffffff;
-          const hasColors = geometry.hasAttribute("color");
-          const material = hasColors
-            ? new THREE.MeshStandardMaterial({
-                vertexColors: true,
-                roughness: 0.45,
-                metalness: 0.12,
-                side: THREE.DoubleSide,
-              })
-            : new THREE.MeshStandardMaterial({
-                color: colorHex,
-                roughness: 0.45,
-                metalness: 0.15,
-                side: THREE.DoubleSide,
+          obj.name = modelKey;
+          obj.traverse((child) => {
+            if (!child.isMesh) return;
+            child.geometry?.computeVertexNormals?.();
+            // 优先使用 MTL 材质；仅在无材质时使用兜底材质。
+            if (!child.material) {
+              const hasColors = child.geometry?.hasAttribute?.("color");
+              child.material = hasColors
+                ? new THREE.MeshStandardMaterial({
+                    vertexColors: true,
+                    roughness: 0.45,
+                    metalness: 0.12,
+                    side: THREE.DoubleSide,
+                  })
+                : new THREE.MeshStandardMaterial({
+                    color: colorHex,
+                    roughness: 0.45,
+                    metalness: 0.15,
+                    side: THREE.DoubleSide,
+                  });
+            } else if (Array.isArray(child.material)) {
+              child.material.forEach((m) => {
+                if (!m) return;
+                m.side = THREE.DoubleSide;
               });
-          if (!hasColors && material.color) {
-            material.color.setHex(colorHex);
-          }
-          material.side = THREE.DoubleSide;
-          const mesh = new THREE.Mesh(geometry, material);
-          mesh.name = modelKey;
-          meshByKey.set(modelKey, mesh);
-          stlGroup.add(mesh);
-        });
+            } else {
+              child.material.side = THREE.DoubleSide;
+            }
+          });
+          meshByKey.set(modelKey, obj);
+          modelGroup.add(obj);
+          });
       }),
     ).then((results) => {
       results.forEach((res, i) => {
         if (res.status === "rejected") {
-          console.warn("[threePreview] STL 加载失败:", stlUrls[i], res.reason);
+          console.warn("[threePreview] OBJ 加载失败:", objUrls[i], res.reason);
         }
       });
-      if (stlGroup.children.length === 0) {
-        console.warn("[threePreview] 没有成功加载 STL 模型。");
+      if (modelGroup.children.length === 0) {
+        console.warn("[threePreview] 没有成功加载 OBJ 模型。");
         return;
       }
+
+      // 先设置各模型位置，再进行父子级挂载。
+      meshByKey.get("Head")?.position.set(0, 0, 142.37);
+      meshByKey.get("Leftjian")?.position.set(0, 0, 122.03);
+      meshByKey.get("Rightjian")?.position.set(0, 0, 122.03);
+      meshByKey.get("Leftbi")?.position.set(-70.699, 0, 121.85);
+      meshByKey.get("Rightbi")?.position.set(70.699, 0, 121.85);
+      meshByKey.get("Lefthand")?.position.set(-78.33, 0, 75.353);
+      meshByKey.get("Righthand")?.position.set(78.33, 0, 75.353);
 
       MODEL_HIERARCHY.forEach(([parentKey, childKey]) => {
         const parent = meshByKey.get(parentKey);
@@ -539,8 +599,9 @@ export function initPreview(root) {
       rightjianMeshRef = meshByKey.get("Rightjian") || null;
       rightbiMeshRef = meshByKey.get("Rightbi") || null;
       righthandMeshRef = meshByKey.get("Righthand") || null;
+      headMeshRef = meshByKey.get("Head") || null;
       // 回放之前缓存的旋转值，确保 UI 状态与模型姿态一致。
-      applyBodyRotationZ(pendingBodyRotationZ);
+      applyHearRotationX(pendingHeadRotationX);
       applyLeftjianRotationX(pendingLeftjianRotationX);
       applyLeftbiRotationY(pendingLeftbiRotationY);
       applyLefthandRotationY(pendingLefthandRotationY);
@@ -548,12 +609,12 @@ export function initPreview(root) {
       applyRightbiRotationY(pendingRightbiRotationY);
       applyRighthandRotationY(pendingRighthandRotationY);
 
-      const { box, scale } = fitStlGroup(stlGroup);
+      const { box, scale } = fitStlGroup(modelGroup);
       const size = box.getSize(new THREE.Vector3()).multiplyScalar(scale);
       const maxDim = Math.max(size.x, size.y, size.z, 0.5);
-      stlGroup.rotation.x = -Math.PI / 2;
-      moveGroupCenterToOrigin(stlGroup);
-      stlGroup.position.set(0, 0, 0);
+      modelGroup.rotation.x = -Math.PI / 2;
+      moveGroupCenterToOrigin(modelGroup);
+      modelGroup.position.set(0, 0, 0);
 
       // 按模型尺寸自动取景，避免“已加载但镜头看不到”的情况。
       const fov = (camera.fov * Math.PI) / 180;
@@ -568,9 +629,9 @@ export function initPreview(root) {
       controls.update();
     });
   } else {
-    console.warn("[threePreview] src/assets/models 中未找到 .stl 文件。");
+    console.warn("[threePreview] src/assets/models 中未找到 .obj 文件。");
   }
-  // #endregion STL 加载与层级组装
+  // #endregion OBJ 加载与层级组装
 
   // #region 渲染循环
   let raf = 0;
@@ -633,7 +694,7 @@ export function initPreview(root) {
     if (!includeHelpers) {
       axesHelper.visible = false;
       unitMarker.visible = false;
-      setPivotMarkersVisible(stlGroup, false);
+      setPivotMarkersVisible(modelGroup, false);
     }
 
     const rtw = width * supersample;
@@ -667,7 +728,7 @@ export function initPreview(root) {
     if (!includeHelpers) {
       axesHelper.visible = axesVis;
       unitMarker.visible = markerVis;
-      setPivotMarkersVisible(stlGroup, true);
+      setPivotMarkersVisible(modelGroup, true);
     }
 
     const outCanvas =
@@ -761,7 +822,7 @@ export function initPreview(root) {
     cancelAnimationFrame(raf);
     window.removeEventListener("resize", resize);
     if (ro) ro.disconnect();
-    disposeObject3D(stlGroup);
+    disposeObject3D(modelGroup);
     bodyMeshRef = null;
     leftjianMeshRef = null;
     leftbiMeshRef = null;
@@ -769,13 +830,14 @@ export function initPreview(root) {
     rightjianMeshRef = null;
     rightbiMeshRef = null;
     righthandMeshRef = null;
+    headMeshRef = null;
     if (axesHelper.parent) scene.remove(axesHelper);
     if (unitMarker.parent) scene.remove(unitMarker);
     if (rimLight.parent) scene.remove(rimLight);
     clearBackgroundImage();
     unitMarker.geometry?.dispose();
     unitMarker.material?.dispose();
-    if (stlGroup.parent) scene.remove(stlGroup);
+    if (modelGroup.parent) scene.remove(modelGroup);
     controls.dispose();
     renderer.dispose();
     root.removeChild(renderer.domElement);

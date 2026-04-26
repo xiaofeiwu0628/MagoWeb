@@ -1,7 +1,7 @@
 export {
   PREVIEW_CAPTURE_DEFAULTS,
   initPreview,
-  setBodyRotationZBySlider,
+  setHeadRotationXBySlider,
   setLeftbiRotationYBySlider,
   setLeftjianRotationXBySlider,
   setLefthandRotationYBySlider,
