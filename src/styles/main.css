@@ -594,20 +594,21 @@ html[lang="en"] #material-hamburger-panel .connect-hamburger__action-btn {
 }
 
 .joint-control__top {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  width: 100%;
 }
 
 .joint-control__label {
-  flex: 0 1 auto;
-  font-size: clamp(12px, 1.1vw, 16px);
+  justify-self: center;
+  font-size: clamp(14px, 1.3vw, 18px);
   font-weight: 800;
   color: var(--ink);
   line-height: 1.2;
+  text-align: center;
 }
 
 .joint-control__value {
@@ -626,6 +627,7 @@ html[lang="en"] #material-hamburger-panel .connect-hamburger__action-btn {
   max-width: 100%;
   min-width: 2.8em;
   margin: 0;
+  justify-self: end;
   padding: 2px 4px;
   border: 2px solid var(--ink);
   border-radius: 6px;
@@ -660,8 +662,8 @@ html[lang="en"] #material-hamburger-panel .connect-hamburger__action-btn {
 
 .joint-control__step-btn {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   border: 0;
   background: transparent;
   padding: 0;
@@ -678,18 +680,20 @@ html[lang="en"] #material-hamburger-panel .connect-hamburger__action-btn {
   width: 0;
   height: 0;
   transform: translate(-50%, -50%);
+  /* 轻微描边感，让三角更粗更清晰 */
+  filter: drop-shadow(0 0 0.7px #000) drop-shadow(0 0 1px #000);
 }
 
 .joint-control__step-btn--dec::before {
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-right: 10px solid var(--ink);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 13px solid #111;
 }
 
 .joint-control__step-btn--inc::before {
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-left: 10px solid var(--ink);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 13px solid #111;
 }
 
 .joint-control__step-btn:focus-visible {
